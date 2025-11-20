@@ -3,27 +3,26 @@ using UnityEngine;
 [RequireComponent(typeof(Rigidbody2D))]
 public class PlayerController : MonoBehaviour
 {
-    [Header("Movement Settings")]
+    [Header("Movement")]
     public float moveSpeed = 7.5f;
+
+    [Header("Jump")]
     public float jumpForce = 14f;
-    public int extraJumps = 1;
+    public int extraJumps = 1;     // 2´Ü Á¡ÇÁ È½¼ö
+    public float jumpCutMultiplier = 0.5f;
 
-    [Header("Variable Jump")]
-    public float jumpCutMultiplier = 0.5f; // ì í”„ í‚¤ë¥¼ ì§§ê²Œ ëˆŒë €ì„ ë•Œ ì†ë„ ê°ì†Œ ë¹„ìœ¨
-
-    [Header("Dash Settings")]
+    [Header("Dash")]
     public float dashSpeed = 18f;
     public float dashDuration = 0.15f;
     public float dashCooldown = 0.5f;
 
-    [Header("Ground Check")]
-    public Transform groundCheck;
-    public LayerMask groundMask;
-    private const float groundRadius = 0.18f;
+    [Header("References")]
+    public GroundCheck ground;     // GroundCheck ¿ÀºêÁ§Æ® ¿¬°á
+    public Animator animator;      // Player Animator ¿¬°á
 
     private Rigidbody2D rb;
     private bool facingRight = true;
-    private bool isGrounded;
+
     private bool isJumpHeld;
     private int jumpCount;
 
@@ -37,24 +36,20 @@ public class PlayerController : MonoBehaviour
 
     void Update()
     {
-        // Ground check
-        bool wasGrounded = isGrounded;
-        isGrounded = Physics2D.OverlapCircle(groundCheck.position, groundRadius, groundMask);
-        if (isGrounded && !wasGrounded)
-            jumpCount = 0;
-
         float moveX = Input.GetAxisRaw("Horizontal");
 
+        // === ÀÌµ¿ ===
         if (!isDashing)
             rb.linearVelocity = new Vector2(moveX * moveSpeed, rb.linearVelocity.y);
 
+        // ¹æÇâ ÀüÈ¯
         if (moveX > 0.05f && !facingRight) Flip(true);
         else if (moveX < -0.05f && facingRight) Flip(false);
 
-        // ì í”„ ìž…ë ¥
+        // === Á¡ÇÁ ===
         if (Input.GetKeyDown(KeyCode.Space))
         {
-            if (isGrounded || jumpCount < extraJumps)
+            if (ground.isGrounded || jumpCount < extraJumps)
             {
                 rb.linearVelocity = new Vector2(rb.linearVelocity.x, 0f);
                 rb.AddForce(Vector2.up * jumpForce, ForceMode2D.Impulse);
@@ -62,21 +57,31 @@ public class PlayerController : MonoBehaviour
             }
         }
 
-        // ì í”„ í‚¤ í™€ë“œ ìƒíƒœ ì €ìž¥
-        if (Input.GetKey(KeyCode.Space)) isJumpHeld = true;
-        else isJumpHeld = false;
+        // Á¡ÇÁ È¦µå À¯Áö Ã¼Å©
+        isJumpHeld = Input.GetKey(KeyCode.Space);
 
-        // ì§§ê²Œ ëˆ„ë¥¼ ë•Œ ìƒìŠ¹ ì¤‘ ì†ë„ ì¤„ì´ê¸°
+        // Å° ¶¼¸é »ó½Â ¼Óµµ ¾àÈ­ (°¡º­¿î Á¡ÇÁ)
         if (!isJumpHeld && rb.linearVelocity.y > 0f)
         {
             rb.linearVelocity = new Vector2(rb.linearVelocity.x, rb.linearVelocity.y * jumpCutMultiplier);
         }
 
-        // ëŒ€ì‹œ
-        if (Input.GetKeyDown(KeyCode.LeftShift) && !isDashing && Time.time >= lastDashTime + dashCooldown)
+        // === ÂøÁöÇÏ¸é Á¡ÇÁ Ä«¿îÆ® ¸®¼Â ===
+        if (ground.isGrounded)
+            jumpCount = 0;
+
+        // === ´ë½Ã ===
+        if (Input.GetKeyDown(KeyCode.LeftShift)
+            && !isDashing
+            && Time.time >= lastDashTime + dashCooldown)
         {
             StartCoroutine(Dash(moveX));
         }
+
+        // === ¾Ö´Ï¸ÞÀÌ¼Ç ÆÄ¶ó¹ÌÅÍ ¾÷µ¥ÀÌÆ® ===
+        animator.SetFloat("Move", Mathf.Abs(moveX));
+        animator.SetBool("IsGrounded", ground.isGrounded);
+        animator.SetFloat("YVelocity", rb.linearVelocity.y);
     }
 
     private System.Collections.IEnumerator Dash(float moveX)
@@ -99,17 +104,8 @@ public class PlayerController : MonoBehaviour
     private void Flip(bool toRight)
     {
         facingRight = toRight;
-        Vector3 s = transform.localScale;
-        s.x = Mathf.Abs(s.x) * (toRight ? 1 : -1);
-        transform.localScale = s;
+        Vector3 scale = transform.localScale;
+        scale.x = Mathf.Abs(scale.x) * (toRight ? 1 : -1);
+        transform.localScale = scale;
     }
-
-#if UNITY_EDITOR
-    void OnDrawGizmosSelected()
-    {
-        if (groundCheck == null) return;
-        Gizmos.color = Color.green;
-        Gizmos.DrawWireSphere(groundCheck.position, groundRadius);
-    }
-#endif
 }
