@@ -439,8 +439,9 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 1493361989}
+  - component: {fileID: 1493361990}
   m_Layer: 0
-  m_Name: groundCheck
+  m_Name: GroundCheck
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -461,6 +462,23 @@ Transform:
   m_Children: []
   m_Father: {fileID: 2004470330}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1493361990
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1493361988}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 644c622fbcb2f004d82847c332487f0e, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::GroundCheck
+  groundLayer:
+    serializedVersion: 2
+    m_Bits: 8
+  checkRadius: 0.1
+  isGrounded: 0
 --- !u!1 &1767550582
 GameObject:
   m_ObjectHideFlags: 0
@@ -1447,9 +1465,9 @@ GameObject:
   - component: {fileID: 2004470330}
   - component: {fileID: 2004470328}
   - component: {fileID: 2004470327}
-  - component: {fileID: 2004470326}
   - component: {fileID: 2004470329}
   - component: {fileID: 2004470331}
+  - component: {fileID: 2004470332}
   m_Layer: 0
   m_Name: Player
   m_TagString: Untagged
@@ -1457,29 +1475,6 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!114 &2004470326
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2004470325}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 9c3392927fe9ff24583212610a478397, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::PlayerController
-  moveSpeed: 7.5
-  jumpForce: 14
-  extraJumps: 1
-  jumpCutMultiplier: 0.5
-  dashSpeed: 18
-  dashDuration: 0.15
-  dashCooldown: 0.5
-  groundCheck: {fileID: 1992513872}
-  groundMask:
-    serializedVersion: 2
-    m_Bits: 8
 --- !u!61 &2004470327
 BoxCollider2D:
   m_ObjectHideFlags: 0
@@ -1514,17 +1509,17 @@ BoxCollider2D:
   m_UsedByEffector: 0
   m_CompositeOperation: 0
   m_CompositeOrder: 0
-  m_Offset: {x: 0.030291319, y: -0.034077525}
+  m_Offset: {x: 0, y: 1.3}
   m_SpriteTilingProperty:
     border: {x: 0, y: 0, z: 0, w: 0}
-    pivot: {x: 0.5, y: 0.5}
-    oldSize: {x: 2.28, y: 2.74}
-    newSize: {x: 2.28, y: 2.74}
+    pivot: {x: 0.5, y: 0}
+    oldSize: {x: 1.81, y: 2.61}
+    newSize: {x: 1.81, y: 2.61}
     adaptiveTilingThreshold: 0.5
     drawMode: 0
     adaptiveTiling: 0
   m_AutoTiling: 0
-  m_Size: {x: 2.2873874, y: 2.8099139}
+  m_Size: {x: 1.8, y: 2.6}
   m_EdgeRadius: 0
 --- !u!50 &2004470328
 Rigidbody2D:
@@ -1540,8 +1535,8 @@ Rigidbody2D:
   m_UseAutoMass: 0
   m_Mass: 1
   m_LinearDamping: 0
-  m_AngularDamping: 0.05
-  m_GravityScale: 3
+  m_AngularDamping: 0
+  m_GravityScale: 4
   m_Material: {fileID: 0}
   m_IncludeLayers:
     serializedVersion: 2
@@ -1551,7 +1546,7 @@ Rigidbody2D:
     m_Bits: 0
   m_Interpolate: 0
   m_SleepingMode: 1
-  m_CollisionDetection: 0
+  m_CollisionDetection: 1
   m_Constraints: 4
 --- !u!212 &2004470329
 SpriteRenderer:
@@ -1600,12 +1595,12 @@ SpriteRenderer:
   m_SortingLayerID: 0
   m_SortingLayer: 0
   m_SortingOrder: 0
-  m_Sprite: {fileID: -7258935276431619743, guid: 63ca234ec9c4f39409c4f6340f36802f, type: 3}
+  m_Sprite: {fileID: 4723107735738678597, guid: 791d56365db352c41b8425c5607ad354, type: 3}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_FlipX: 0
   m_FlipY: 0
   m_DrawMode: 0
-  m_Size: {x: 2.28, y: 2.74}
+  m_Size: {x: 1.81, y: 2.61}
   m_AdaptiveModeThreshold: 0.5
   m_SpriteTileMode: 0
   m_WasSpriteAssigned: 1
@@ -1620,7 +1615,7 @@ Transform:
   m_GameObject: {fileID: 2004470325}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: -3.52695, y: -0.95015, z: 0}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
@@ -1649,6 +1644,27 @@ Animator:
   m_AllowConstantClipSamplingOptimization: 1
   m_KeepAnimatorStateOnDisable: 0
   m_WriteDefaultValuesOnDisable: 0
+--- !u!114 &2004470332
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2004470325}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: be50de434071f6146947efed2bb5f8a7, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PlayerController
+  moveSpeed: 7.5
+  jumpForce: 14
+  extraJumps: 1
+  jumpCutMultiplier: 0.5
+  dashSpeed: 18
+  dashDuration: 0.15
+  dashCooldown: 0.5
+  ground: {fileID: 1493361990}
+  animator: {fileID: 2004470331}
 --- !u!1 &2110014764
 GameObject:
   m_ObjectHideFlags: 0
