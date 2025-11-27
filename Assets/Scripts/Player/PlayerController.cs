@@ -98,23 +98,29 @@ public class PlayerController : MonoBehaviour
         isDashing = true;
         lastDashTime = Time.time;
 
+        animator.SetTrigger("Dash");
+
         float dir = (Mathf.Abs(moveX) > 0.1f) ? Mathf.Sign(moveX) : (facingRight ? 1 : -1);
         float originalGravity = rb.gravityScale;
 
+        // 대시 중에는 중력 0
         rb.gravityScale = 0f;
         rb.linearVelocity = new Vector2(dir * dashSpeed, 0f);
 
         yield return new WaitForSeconds(dashDuration);
 
+        // 원래 중력 복구
         rb.gravityScale = originalGravity;
+
         isDashing = false;
     }
 
     private void Flip(bool toRight)
-    {
+    { 
         facingRight = toRight;
-        Vector3 scale = transform.localScale;
-        scale.x = Mathf.Abs(scale.x) * (toRight ? 1 : -1);
-        transform.localScale = scale;
+        Vector3 scale = transform.localScale; 
+        scale.x = Mathf.Abs(scale.x) * (toRight ? 1 : -1); 
+        transform.localScale = scale; 
     }
+
 }
