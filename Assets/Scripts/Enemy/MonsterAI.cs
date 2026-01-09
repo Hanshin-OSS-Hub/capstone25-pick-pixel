@@ -3,16 +3,22 @@ using UnityEngine;
 public enum MonsterState
 {
     Patrol,
-    Chase
+    Chase,
+    Attack
 }
 
 public class MonsterAI : MonoBehaviour
 {
-    [Header("State")]
     public MonsterState state = MonsterState.Patrol;
+
+    [Header("Monster Type")]
+    public bool isFlying;
+    public bool isRanged;
+    public bool isDashMelee;
 
     [Header("Movement")]
     public float moveSpeed = 1.5f;
+    public float dashSpeed = 6f;
     private int moveDir = 1;
 
     [Header("Detect Player")]
@@ -22,7 +28,12 @@ public class MonsterAI : MonoBehaviour
     [Header("Ground Check")]
     public Transform groundCheck;
     public float groundCheckDistance = 0.5f;
-    public LayerMask groundLayer;   // Ground만 체크
+    public LayerMask groundLayer;
+
+    [Header("Attack")]
+    public float attackRange = 1.2f;
+    public float attackCooldown = 1.5f;
+    private float lastAttackTime;
 
     [Header("Patrol Control")]
     public float flipCooldown = 0.4f;
@@ -30,17 +41,12 @@ public class MonsterAI : MonoBehaviour
 
     private Rigidbody2D rb;
 
-    // =========================
-    // 초기화
-    // =========================
     void Awake()
     {
         rb = GetComponent<Rigidbody2D>();
+        if (isFlying) rb.gravityScale = 0;
     }
 
-    // =========================
-    // 물리 업데이트
-    // =========================
     void FixedUpdate()
     {
         switch (state)
@@ -48,90 +54,144 @@ public class MonsterAI : MonoBehaviour
             case MonsterState.Patrol:
                 Patrol();
                 break;
-
             case MonsterState.Chase:
                 Chase();
+                break;
+            case MonsterState.Attack:
+                Attack();
                 break;
         }
     }
 
     // =========================
-    // 순찰 상태
+    // Patrol
     // =========================
     void Patrol()
     {
-        // 계속 이동
-        rb.linearVelocity = new Vector2(moveDir * moveSpeed, rb.linearVelocity.y);
+        rb.linearVelocity = isFlying
+            ? new Vector2(moveDir * moveSpeed, 0)
+            : new Vector2(moveDir * moveSpeed, rb.linearVelocity.y);
 
-        // 낭떠러지 감지 (Ground만 인식)
-        RaycastHit2D groundHit = Physics2D.Raycast(
-            groundCheck.position,
-            Vector2.down,
-            groundCheckDistance,
-            groundLayer
-        );
-
-        if (!groundHit && Time.time > lastFlipTime + flipCooldown)
+        if (!isFlying)
         {
-            Flip();
-            lastFlipTime = Time.time;
+            RaycastHit2D hit = Physics2D.Raycast(
+                groundCheck.position,
+                Vector2.down,
+                groundCheckDistance,
+                groundLayer
+            );
+
+            if (!hit && Time.time > lastFlipTime + flipCooldown)
+            {
+                Flip();
+                lastFlipTime = Time.time;
+            }
         }
 
-        // 플레이어 감지
-        float dist = Vector2.Distance(transform.position, player.position);
-        if (dist < detectRange)
-        {
+        if (DistanceToPlayer() < detectRange)
             state = MonsterState.Chase;
-        }
     }
 
     // =========================
-    // 추적 상태
+    // Chase
     // =========================
     void Chase()
     {
-        float dir = Mathf.Sign(player.position.x - transform.position.x);
+        float dist = DistanceToPlayer();
 
-        rb.linearVelocity = new Vector2(dir * moveSpeed, rb.linearVelocity.y);
-
-        // 추적 중 방향 전환
-        if (dir != moveDir && Time.time > lastFlipTime + flipCooldown)
+        if (dist <= attackRange && Time.time > lastAttackTime + attackCooldown)
         {
-            Flip();
-            lastFlipTime = Time.time;
+            state = MonsterState.Attack;
+            return;
         }
 
-        // 플레이어 멀어지면 다시 순찰
-        float dist = Vector2.Distance(transform.position, player.position);
+        if (isFlying)
+        {
+            Vector2 dir = (player.position - transform.position).normalized;
+            rb.linearVelocity = dir * moveSpeed;
+        }
+        else
+        {
+            float dir = Mathf.Sign(player.position.x - transform.position.x);
+            rb.linearVelocity = new Vector2(dir * moveSpeed, rb.linearVelocity.y);
+
+            if (dir != moveDir && Time.time > lastFlipTime + flipCooldown)
+                Flip();
+        }
+
         if (dist > detectRange)
-        {
             state = MonsterState.Patrol;
-        }
     }
 
     // =========================
-    // 방향 전환
+    // Attack (타입별 분기)
     // =========================
+    void Attack()
+    {
+        rb.linearVelocity = Vector2.zero;
+
+        if (isDashMelee)
+        {
+            DashAttack();
+        }
+        else if (isRanged)
+        {
+            RangedAttack();
+        }
+        else
+        {
+            MeleeAttack();
+        }
+
+        lastAttackTime = Time.time;
+        state = MonsterState.Chase;
+    }
+
+    // =========================
+    // 공격 타입들
+    // =========================
+    void MeleeAttack()
+    {
+        Debug.Log("지상 근접 공격");
+        // HitCollider 활성화 / 애니메이션 트리거
+    }
+
+    void RangedAttack()
+    {
+        Debug.Log("원거리 발사");
+        // 투사체 생성
+    }
+
+    void DashAttack()
+    {
+        Debug.Log("공중 돌진 공격");
+
+        Vector2 dir = (player.position - transform.position).normalized;
+        rb.linearVelocity = dir * dashSpeed;
+    }
+
+    // =========================
+    // Utils
+    // =========================
+    float DistanceToPlayer()
+    {
+        return Vector2.Distance(transform.position, player.position);
+    }
+
     void Flip()
     {
         moveDir *= -1;
-
         Vector3 scale = transform.localScale;
         scale.x = Mathf.Abs(scale.x) * moveDir;
         transform.localScale = scale;
     }
 
-    // =========================
-    // 디버그용 Ray 확인
-    // =========================
-    void OnDrawGizmos()
+    void OnDrawGizmosSelected()
     {
-        if (groundCheck == null) return;
+        Gizmos.color = Color.yellow;
+        Gizmos.DrawWireSphere(transform.position, detectRange);
 
         Gizmos.color = Color.red;
-        Gizmos.DrawLine(
-            groundCheck.position,
-            groundCheck.position + Vector3.down * groundCheckDistance
-        );
+        Gizmos.DrawWireSphere(transform.position, attackRange);
     }
 }
