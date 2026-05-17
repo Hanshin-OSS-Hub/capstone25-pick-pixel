@@ -1,0 +1,258 @@
+============================================================
+capstone25-pick-pixel — 에러 / 이슈 모음
+작성일: 2026-05-18 (플레이 모드 실측 후 보강)
+대상 커밋: 44e7cb7 (main)
+Unity Editor: 6000.3.11f1
+============================================================
+
+[검증 환경]
+  MCP for Unity 연결됨 (capstone25-pick-pixel@36da06b5f9ed1917)
+  플레이 모드 진입 정상, 도메인 리로드 / 컴파일 모두 깨끗 (0 errors).
+
+[실측 콘솔 출력 (Stage1 진입 직후)]
+  ✓ MapManager: "===== 런 생성 완료: 총 5개 방 =====", "현재 방: Stage1_Start (1/5)"
+  ✓ SimplePortal: Portal_Left / Portal_Right 다수 초기화 정상
+  ✗ PlayerController.Awake (Assets/Scripts/Player/PlayerController.cs:86)
+       NullReferenceException 1건 발생  → ▼ 신규 이슈 #0 참조
+
+각 항목 표기 규칙
+  [심각도] (위치) 제목
+    - 현상
+    - 원인
+    - 권장 조치
+
+심각도
+  CRITICAL : 빌드 또는 실행 중 기능이 실제로 동작하지 않음
+  HIGH     : 즉시 눈에 보이거나 사용자 경험에 큰 영향
+  MEDIUM   : 런타임 경고, 의도와 다른 동작이 발생할 가능성
+  LOW      : 코드 스멜, 정리 / 리팩터링 권장 사항
+
+============================================================
+[CRITICAL] 0. Stage1 씬에 PlayerController 객체가 2개 존재  (실측 확인)
+============================================================
+
+Stage1.unity 루트에 다음 두 객체가 동시에 존재
+  (A) Player_1   (path: "Player_1")
+        - Tag=Player, Layer=Player
+        - 자식 5개: GroundSensor, WallSensor_R1/R2/L1/L2 (Sensor_HeroKnight 부착)
+        - PlayerController 정상 동작
+  (B) Gameplay/Player  (path: "Gameplay/Player")
+        - Tag=Untagged, Layer=Default
+        - 자식 1개뿐 — GroundSensor / WallSensor_* 모두 없음
+        - PlayerController.Awake() 의
+              transform.Find("GroundSensor").GetComponent<Sensor_HeroKnight>();
+          (PlayerController.cs:86) 에서 NullReferenceException 발생
+
+영향
+  - 매 플레이 진입 시 콘솔에 NullReferenceException 1건 찍힘 (Awake 실패).
+  - 두 캐릭터가 동시에 좌클릭/Space 등 같은 입력에 반응 가능.
+  - CameraFollow.target 이 어느 쪽을 가리키는지에 따라 화면에 보이는 캐릭터가 달라짐
+    → 사실상 게임 진행 불가/혼란.
+
+권장 조치
+  - 둘 중 하나(가급적 Gameplay/Player) 삭제
+  - 남기는 인스턴스의 Tag 를 "Player" 로 통일하고 CameraFollow.target 으로 연결
+  - 추가로 비활성화되어 있는 루트 "HeroKnight" 도 함께 정리 (HeroKnight.cs 중복)
+
+
+============================================================
+[CRITICAL] 1. 누락된 태그(Tag) — 런타임 충돌 처리 일부 실패
+============================================================
+
+확인된 코드 (실측: mcpforunity://project/tags)
+  현재 태그 목록:
+    Untagged, Respawn, Finish, EditorOnly, MainCamera,
+    Player, GameController, Ground, Monster
+
+  → "Player" 태그는 Unity 빌트인이라 정상적으로 존재함.
+    (이전 보고에서 누락이라 했던 점 정정 — SimplePortal 의 CompareTag("Player") 자체는 동작 가능)
+
+여전히 미등록인 태그
+  (1) Assets/Scripts/Enemy/MonsterHit.cs:9
+        if (other.CompareTag("PlayerAttack"))
+      → "PlayerAttack" 미등록 → 플레이어 공격 판정이 항상 false.
+
+  (2) Assets/Scripts/Player/PlayerController.cs:284
+        if (hit.collider != null && hit.collider.CompareTag("OneWayPlatform"))
+      → "OneWayPlatform" 미등록 → S+Space 하강 입력 무력화.
+
+권장 조치
+  - Edit > Project Settings > Tags and Layers 에서 다음 태그 추가:
+      "PlayerAttack", "OneWayPlatform"
+  - 플레이어 공격 콜라이더와 한쪽 통행 발판 프리팹에 각각 적용.
+
+
+============================================================
+[CRITICAL] 2. 한글 인코딩 손상 (Mojibake)
+============================================================
+
+증상
+  여러 스크립트의 한글 주석·문자열이 깨진 바이트(`���� ��`) 로 저장되어 있음.
+  Unity Editor에서 다시 저장하면 코드 자체는 컴파일되지만,
+    · Inspector 라벨(Header 등)이 깨져 보이고
+    · Debug.Log 출력이 의미 없는 글자로 표시되며
+    · UTF‑8 환경(GitHub 등)에서 가독성이 무너짐.
+
+영향 파일
+  - Assets/Scripts/Enemy/MonsterHit.cs:12
+        Debug.Log("���� �ǰ�! ���� HP: " + hp);
+        (원래 "몬스터 피격! 현재 HP: " 의도로 추정)
+  - Assets/Scripts/CameraFollow.cs
+        다수 한글 주석 깨짐 (`���� ��������`, `Ÿ�ϸ� ��� ����`, `Clamp ���`, `ROOM MODE` 등)
+  - Assets/Scripts/MainMenuController.cs
+        주석 다수 깨짐 (`���� �޴�`, `���̺� ���� ����`, `���̺� ���� ����`)
+  - Assets/Scripts/MovingPlatform.cs:5
+        [Header("�̵� ����")]  → Inspector에 깨진 글자로 표시됨
+
+원인
+  파일이 EUC‑KR / CP949 로 저장된 채 UTF‑8 로 재해석되어 깨진 것으로 추정.
+  (Visual Studio for Unity 의 기본 ANSI 저장 또는 Notepad 한글 환경 영향)
+
+권장 조치
+  1) VS Code 등으로 각 파일을 열어 인코딩을 "UTF‑8 with BOM" 으로 재저장.
+  2) 깨진 주석/문자열 복구.
+  3) Editor Settings → Asset Serialization 은 Force Text 유지(이미 그러함).
+
+
+============================================================
+[MEDIUM] 3. Obsolete API 사용
+============================================================
+
+Assets/Scripts/SimplePortal.cs:42
+    mapManager = FindObjectOfType<MapManager>();
+
+  - Unity 6 (2023.1+) 에서 FindObjectOfType<T>() 는 deprecated.
+  - 빌드 시 Warning 발생.
+  - 권장:
+        mapManager = Object.FindFirstObjectByType<MapManager>();
+    또는
+        mapManager = Object.FindAnyObjectByType<MapManager>();
+
+
+============================================================
+[MEDIUM] 4. MonsterAI 공격 후 즉시 재공격 가능성
+============================================================
+
+Assets/Scripts/Enemy/MonsterAI.cs:172~197
+  Attack() 진입 시 isAttacking 플래그로 중복 방지,
+  EndAttack()에서 state = MonsterState.Chase 로 복귀.
+  복귀 직후 Chase() 안에서 다시 attackRange 안이면 즉시 Attack 으로 전이됨.
+  attackCooldown 체크는 있으나 lastAttackTime 갱신은 EndAttack() 안에서만 이루어지므로
+  attackDuration < attackCooldown 이라면 약간의 텀이 생기지만,
+  반대로 두 값이 가까우면 사실상 끊임없이 때리는 형태가 됨.
+
+권장 조치
+  - EndAttack 후 짧은 후딜레이(예: Invoke 0.1s) 또는
+  - attackCooldown 을 attackDuration 보다 충분히 크게 설정.
+  - 또한 RangedAttack() 은 TODO 상태로 실제 투사체 생성 로직이 비어 있음 (라인 213).
+
+
+============================================================
+[MEDIUM] 5. CameraFollow.cs — Deadzone 분기 중복
+============================================================
+
+라인 66~69
+    if (target.position.x < deadMin.x) targetPos.x = target.position.x;
+    if (target.position.x > deadMax.x) targetPos.x = target.position.x;
+    if (target.position.y < deadMin.y) targetPos.y = target.position.y;
+    if (target.position.y > deadMax.y) targetPos.y = target.position.y;
+
+  - 양쪽 모두 target.position.x/y 그대로 할당하므로
+    Deadzone 경계와 동일한 위치로 카메라를 끌어당기는 부드러운 효과를 살리지 못함.
+  - 의도가 "Deadzone 밖일 때 그 경계까지만 따라가기" 였다면 다음과 같이 수정:
+        if (target.position.x < deadMin.x) targetPos.x = target.position.x - (deadMin.x - cameraPos.x) ...
+    혹은 명확하게:
+        if (target.position.x < deadMin.x)
+            targetPos.x = cameraPos.x + (target.position.x - deadMin.x);
+
+
+============================================================
+[LOW] 6. 더블 점프 카운터 의미 모호
+============================================================
+
+Assets/Scripts/Player/PlayerController.cs:219~241
+    if (grounded)             jumpCount = 1;
+    else if (jumpCount <= extraJumps && extraJumps > 0)
+                              jumpCount++;
+
+  - extraJumps = 1 일 때
+      지상 점프 후 jumpCount=1,
+      공중에서 1 <= 1 → true → 더블 점프 발동 후 jumpCount=2,
+      다시 검사 2 <= 1 → false → 3단 점프 차단.
+  - 결과적으로 의도("추가 점프 N회") 와 동작은 일치하나
+    카운터의 시작값(1)·비교 연산자(≤)의 조합이 직관적이지 않음.
+  - 권장: jumpCount=0 부터 시작, 비교는 `jumpCount < extraJumps`.
+
+
+============================================================
+[LOW] 7. 중복 컨트롤러 (HeroKnight.cs vs PlayerController.cs)
+============================================================
+
+Assets/Hero Knight - Pixel Art/Demo/HeroKnight.cs
+Assets/Scripts/Player/PlayerController.cs
+
+  - 두 스크립트가 거의 동일한 입력/애니메이션 로직을 가짐.
+  - Player 프리팹이 두 컴포넌트를 동시에 가지고 있다면
+    같은 키 입력에 이중 반응(점프 두 번 등)이 일어남.
+  - 권장: 한 쪽만 컴포넌트로 부착하고 다른 쪽은 비활성/삭제.
+    (HeroKnight.cs 는 외부 에셋 데모용이므로 삭제 권장)
+
+
+============================================================
+[LOW] 8. 빈 룸 프리팹 폴더
+============================================================
+
+다음 폴더는 .meta 만 존재하고 실제 프리팹 파일이 없음
+  - Assets/Prefabs/Rooms/Fixed/Room_Entrance/
+  - Assets/Prefabs/Rooms/Fixed/Room_Boss/
+  - Assets/Prefabs/Rooms/Fixed/Room_Checkpoint/
+  - Assets/Prefabs/Rooms/Fixed/Room_Elite/
+  - Assets/Prefabs/Rooms/Fixed/Room_Exit/
+  - Assets/Prefabs/Rooms/Random/Combat/Room_Combat_A/
+  - Assets/Prefabs/Rooms/Random/Combat/Room_Combat_B/
+  - Assets/Prefabs/Rooms/Random/Combat/Room_Combat_C/
+
+  - 현재 MapManager 는 씬에 미리 배치된 방 오브젝트를 활성/비활성 하는 방식이라
+    런타임 동작에는 영향이 없음.
+  - 그러나 프리팹 기반으로 확장할 계획이라면 채워야 하며, 아니면 정리 권장.
+
+
+============================================================
+[LOW] 9. GroundCheck.cs 미사용 가능성
+============================================================
+
+Assets/Scripts/Player/GroundCheck.cs
+  - OverlapCircle 기반 isGrounded 플래그 컴포넌트.
+  - PlayerController.cs 는 Sensor_HeroKnight 트리거 기반으로 지면을 판정하므로
+    중복 / 미사용일 가능성이 큼.
+  - 만약 어디서도 참조가 없다면 제거하거나, 반대로 메인 컨트롤러를 이 컴포넌트로 통일.
+
+
+============================================================
+[INFO] 10. 라이선싱 / 로그 메시지
+============================================================
+
+Logs/AssetImportWorker0.log
+    [Licensing::Client] Error: HandshakeResponse reported an error:
+    [Licensing::Module] Error: Failed to handshake to channel: "LicenseClient-bmbm7"
+
+  - Unity 라이선스 클라이언트 핸드셰이크 실패 로그.
+  - Editor를 일반 모드로 열 때 종종 보이는 경고이며
+    실제 라이선스가 활성화되어 있으면 게임 실행에는 영향을 주지 않음.
+  - 만약 Editor 진입이 안 되면 Unity Hub 에서 라이선스 재인증.
+
+
+============================================================
+요약 우선순위
+============================================================
+
+  1) [CRITICAL] Stage1 의 중복 Player 객체 정리 — Gameplay/Player 삭제 + 비활성 HeroKnight 정리
+  2) [CRITICAL] 누락 태그 등록 — "PlayerAttack", "OneWayPlatform"
+                ("Player" 는 빌트인으로 이미 존재함)
+  3) [CRITICAL] 깨진 한글 인코딩 4개 파일 UTF‑8 재저장
+  4) [MEDIUM]   FindObjectOfType → FindFirstObjectByType
+  5) [MEDIUM]   MonsterAI 공격 후 텀 / RangedAttack 투사체 구현
+  6) [MEDIUM]   CameraFollow Deadzone 로직 검토
+  7) [LOW]      HeroKnight.cs 중복 제거, 빈 룸 프리팹 정리, GroundCheck.cs 용도 정리
+
+============================================================
