@@ -1,5 +1,4 @@
 {
-  "defaultMode": "bypassPermissions",
   "permissions": {
     "allow": [
       "Bash(grep -E \"CS[0-9]+|error CS|warning CS|Assets\\\\\\\\\\\\\\\\\" \"C:/Users/bmbm7/OneDrive/바탕 화면/capstone25-pick-pixel/Logs/AssetImportWorker0.log\")",
@@ -17,7 +16,9 @@
       "mcp__UnityMCP__manage_camera",
       "Bash(git checkout *)",
       "mcp__UnityMCP__manage_prefabs",
-      "mcp__UnityMCP__manage_build"
+      "mcp__UnityMCP__manage_build",
+      "Skill(update-config)"
     ]
-  }
+  },
+  "defaultMode": "bypassPermissions"
 }

@@ -1529,6 +1529,7 @@ GameObject:
   - component: {fileID: 1871890141287062926}
   - component: {fileID: 6280570061945199227}
   - component: {fileID: 4779139910478269252}
+  - component: {fileID: 8888888888888888882}
   m_Layer: 5
   m_Name: Panel_Settings
   m_TagString: Untagged
@@ -1578,17 +1579,17 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: fe87c0e1cc204ed48ad3b37840f39efc, type: 3}
-  m_Name: 
+  m_Name:
   m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Image
   m_Material: {fileID: 0}
-  m_Color: {r: 0.23137255, g: 0.09803922, b: 0.41568628, a: 0.392}
+  m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_RaycastTarget: 1
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
   m_Maskable: 1
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 550426796001352546, guid: 9b43fd77ce408ed4d919bcddb1cd0f9c, type: 3}
+  m_Sprite: {fileID: -3730714430979187846, guid: 56d8d515caac6c24f996d42b9d23f7cd, type: 3}
   m_Type: 0
   m_PreserveAspect: 0
   m_FillCenter: 1
@@ -2137,5 +2138,20 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 569ee3eca5706d74b8553888f15025cf, type: 3}
-  m_Name: 
+  m_Name:
   m_EditorClassIdentifier: Assembly-CSharp::PersistentEventSystem
+--- !u!114 &8888888888888888882
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6978545284513023144}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2a9b8c7d6e5f4031948372615463728a, type: 3}
+  m_Name:
+  m_EditorClassIdentifier:
+  volumeSlider: {fileID: 5974411139357785257}
+  graphicsSlider: {fileID: 5914255437499466277}
+  vsyncToggle: {fileID: 6388483474695309771}
