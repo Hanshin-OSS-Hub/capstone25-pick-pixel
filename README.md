@@ -193,3 +193,61 @@ HeroKnight Animator(`AnimState`, `AirSpeedY`, `Grounded`, `WallSlide` 등)를 �
 - **Hero Knight - Pixel Art** — © Sven Thole (Unity Asset Store)
 - **Dark Forest** — © Szadi Art (xpx@onet.eu)
 - 본 프로젝트 코드 자체는 학내 캡스톤 결과물로, 외부 에셋의 라이선스는 각 에셋 제공자의 정책을 따른다.
+
+---
+
+## 11. 브랜치 전략 / 개발 분담 (2026-05-22)
+
+### 브랜치 구조
+
+```
+main (메인 배포 브랜치 — PR 병합만 가능)
+  ↑
+develop (통합 브랜치 — 모든 개인 브랜치 작업 병합)
+  ↑
+  ├─ 배민 (개인 작업 브랜치)
+  ├─ 정인규 (개인 작업 브랜치)
+  ├─ 임강연 (개인 작업 브랜치)
+  └─ 문영진 (개인 작업 브랜치)
+```
+
+### 작업 분담
+
+| 담당자 | 브랜치 | 담당 이슈 | 수정 파일 |
+|--------|--------|---------|---------|
+| **배민** | `배민` | [CRITICAL #0] Stage1 중복 Player 객체 정리 | `Assets/Scenes/Stage1.unity`<br>`Assets/Prefabs/Player.prefab` |
+| **정인규** | `정인규` | [CRITICAL #2] 한글 인코딩 손상 복구<br>(UTF-8 with BOM 재저장) | `MonsterHit.cs`<br>`CameraFollow.cs`<br>`MainMenuController.cs`<br>`MovingPlatform.cs` |
+| **임강연** | `임강연` | [CRITICAL #1] 누락 태그 등록 & 프리팹 적용 | `ProjectSettings/TagManager.asset`<br>`Assets/Prefabs/Player.prefab`<br>`Assets/Prefabs/Monster_*.prefab` |
+| **문영진** | `문영진` | [MEDIUM #4] FindObjectOfType 업그레이드<br>[MEDIUM #5] MonsterAI 공격 쿨다운 개선 | `SimplePortal.cs`<br>`Assets/Scripts/Enemy/MonsterAI.cs` |
+
+### 작업 흐름
+
+1. **각자 개인 브랜치에서 작업**
+   ```powershell
+   git checkout 배민  # 또는 자신의 브랜치명
+   git pull origin 배민
+   # ... 파일 수정 ...
+   git add .
+   git commit -m "CRITICAL #0: Stage1 중복 Player 객체 정리"
+   git push origin 배민
+   ```
+
+2. **GitHub에서 PR 생성**
+   - 개인 브랜치 → `develop` 브랜치로 PR 생성
+   - 팀원 1명 이상의 검토 후 병합
+
+3. **충돌 처리**
+   - PR 생성 시 자동으로 충돌 표시됨
+   - 병합 전 충돌 해결 (GitHub UI 또는 로컬)
+   - develop은 항상 컴파일 가능한 상태 유지
+
+4. **최종 메인 병합**
+   - 모든 CRITICAL 이슈 해결 후
+   - develop → main PR 생성 & 병합
+
+### 주의사항
+
+- **각 브랜치는 담당 파일만 수정** — 충돌 최소화
+- **develop에 자주 동기화** — `git pull origin develop` 로 최신 상태 유지
+- **커밋 메시지는 이슈 번호 포함** — 예: "CRITICAL #0: 중복 객체 정리"
+- **프리팹/씬 파일 수정 시 주의** — 병합 전 충돌 여부 확인
