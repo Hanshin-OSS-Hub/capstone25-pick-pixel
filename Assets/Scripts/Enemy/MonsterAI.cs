@@ -1,152 +1,107 @@
+using System.Collections;
 using UnityEngine;
 
-public enum MonsterState
-{
-    Patrol,
-    Chase,
-    Attack
-}
+public enum MonsterState { Patrol, Chase, Attack }
 
 public class MonsterAI : MonoBehaviour
 {
     [Header("State")]
     public MonsterState state = MonsterState.Patrol;
 
-    // =========================
-    // Monster Type
-    // =========================
     [Header("Monster Type")]
-    public bool isFlying;        // 공중 몬스터
-    public bool isRanged;        // 원거리 공격
-    public bool isDashMelee;     // 돌진 근접 공격
+    public bool isFlying;
+    public bool isRanged;
+    public bool isDashMelee;
 
-    // =========================
-    // Movement
-    // =========================
     [Header("Movement")]
     public float moveSpeed = 1.5f;
     public float dashSpeed = 6f;
     private int moveDir = 1;
 
-    // =========================
-    // Detect
-    // =========================
     [Header("Detect Player")]
     public Transform player;
     public float detectRange = 5f;
 
-    // =========================
-    // Ground Check
-    // =========================
     [Header("Ground Check")]
     public Transform groundCheck;
     public float groundCheckDistance = 0.4f;
     public LayerMask groundLayer;
 
-    // =========================
-    // Attack
-    // =========================
     [Header("Attack")]
-    public float attackRange = 1.2f;
+    public float attackRange    = 1.2f;
     public float attackCooldown = 1.5f;
     public float attackDuration = 0.4f;
+    public int   attackDamage   = 10;
 
     private float lastAttackTime;
-    private bool isAttacking;
+    private bool  isAttacking;
+    private bool  isDead;
 
-    // =========================
-    // Flip
-    // =========================
     [Header("Flip Control")]
     public float flipCooldown = 0.3f;
     private float lastFlipTime;
 
-    // =========================
-    // Components
-    // =========================
-    Rigidbody2D rb;
+    Rigidbody2D   rb;
     BoxCollider2D bodyCol;
-    Animator anim;
+    Animator      anim;
 
     [Header("Hit Collider")]
     public GameObject hitCollider;
 
-    // =========================
-    // Awake / Start
-    // =========================
     void Awake()
     {
-        rb = GetComponent<Rigidbody2D>();
+        rb      = GetComponent<Rigidbody2D>();
         bodyCol = GetComponent<BoxCollider2D>();
-        anim = GetComponent<Animator>();
-
-        if (isFlying)
-            rb.gravityScale = 0;
+        anim    = GetComponent<Animator>();
+        if (isFlying) rb.gravityScale = 0;
     }
 
     void Start()
     {
+        if (player == null)
+            player = GameObject.FindWithTag("Player")?.transform;
+        if (player == null)
+            Debug.LogError($"[MonsterAI] {gameObject.name}: Player를 찾을 수 없습니다!");
         AutoPlaceGroundCheck();
-        if (hitCollider != null)
-            hitCollider.SetActive(false);
+        if (hitCollider != null) hitCollider.SetActive(false);
     }
 
-    // =========================
-    // Update
-    // =========================
+    void OnDestroy()
+    {
+        CancelInvoke();
+        StopAllCoroutines();
+    }
+
     void FixedUpdate()
     {
+        if (isDead || player == null) return;
         switch (state)
         {
-            case MonsterState.Patrol:
-                Patrol();
-                break;
-            case MonsterState.Chase:
-                Chase();
-                break;
-            case MonsterState.Attack:
-                Attack();
-                break;
+            case MonsterState.Patrol: Patrol(); break;
+            case MonsterState.Chase:  Chase();  break;
+            case MonsterState.Attack: Attack(); break;
         }
     }
 
-    // =========================
-    // Patrol
-    // =========================
     void Patrol()
     {
         anim.Play("Walk");
-
         if (isFlying)
-        {
             rb.linearVelocity = new Vector2(moveDir * moveSpeed, 0);
-        }
         else
         {
             rb.linearVelocity = new Vector2(moveDir * moveSpeed, rb.linearVelocity.y);
-
-            if (!IsGroundAhead() && Time.time > lastFlipTime + flipCooldown)
-                Flip();
+            if (!IsGroundAhead() && Time.time > lastFlipTime + flipCooldown) Flip();
         }
-
-        if (DistanceToPlayer() <= detectRange)
-            state = MonsterState.Chase;
+        if (DistanceToPlayer() <= detectRange) state = MonsterState.Chase;
     }
 
-    // =========================
-    // Chase
-    // =========================
     void Chase()
     {
         anim.Play("Walk");
-
         float dist = DistanceToPlayer();
-
         if (dist <= attackRange && Time.time > lastAttackTime + attackCooldown)
-        {
-            state = MonsterState.Attack;
-            return;
-        }
+        { state = MonsterState.Attack; return; }
 
         if (isFlying)
         {
@@ -157,54 +112,36 @@ public class MonsterAI : MonoBehaviour
         {
             float dir = Mathf.Sign(player.position.x - bodyCol.bounds.center.x);
             rb.linearVelocity = new Vector2(dir * moveSpeed, rb.linearVelocity.y);
-
-            if (dir != moveDir && Time.time > lastFlipTime + flipCooldown)
-                Flip();
+            if (dir != moveDir && Time.time > lastFlipTime + flipCooldown) Flip();
         }
-
-        if (dist > detectRange)
-            state = MonsterState.Patrol;
+        if (dist > detectRange) state = MonsterState.Patrol;
     }
 
-    // =========================
-    // Attack
-    // =========================
     void Attack()
     {
         if (isAttacking) return;
-
         isAttacking = true;
         rb.linearVelocity = Vector2.zero;
-
-        if (isDashMelee)
-            DashAttack();
-        else if (isRanged)
-            RangedAttack();
-        else
-            MeleeAttack();
-
-        Invoke(nameof(EndAttack), attackDuration);
+        if      (isDashMelee) DashAttack();
+        else if (isRanged)    RangedAttack();
+        else                  MeleeAttack();
+        StartCoroutine(EndAttackRoutine());
     }
 
-    void EndAttack()
+    IEnumerator EndAttackRoutine()
     {
-        if (hitCollider != null)
-            hitCollider.SetActive(false);
-
-        isAttacking = false;
+        yield return new WaitForSeconds(attackDuration);
+        if (hitCollider != null) hitCollider.SetActive(false);
+        isAttacking    = false;
         lastAttackTime = Time.time;
-        state = MonsterState.Chase;
+        state          = MonsterState.Chase;
     }
 
-    // =========================
-    // Attack Types
-    // =========================
     void MeleeAttack()
     {
         anim.Play("Attack");
-
-        if (hitCollider != null)
-            hitCollider.SetActive(true);
+        if (hitCollider != null) hitCollider.SetActive(true);
+        DealDamageToPlayer();
     }
 
     void RangedAttack()
@@ -216,46 +153,52 @@ public class MonsterAI : MonoBehaviour
     void DashAttack()
     {
         anim.Play("Attack");
-
         Vector2 dir = (player.position - bodyCol.bounds.center).normalized;
         rb.linearVelocity = dir * dashSpeed;
-
-        Invoke(nameof(StopDash), 0.25f);
-
-        if (hitCollider != null)
-            hitCollider.SetActive(true);
+        StartCoroutine(StopDashRoutine());
+        if (hitCollider != null) hitCollider.SetActive(true);
+        DealDamageToPlayer();
     }
 
-    void StopDash()
+    IEnumerator StopDashRoutine()
     {
+        yield return new WaitForSeconds(0.25f);
         rb.linearVelocity = Vector2.zero;
     }
 
-    // =========================
-    // Utils
-    // =========================
+    void DealDamageToPlayer()
+    {
+        if (player == null) return;
+        var pc = player.GetComponent<PlayerController>();
+        if (pc != null) pc.TakeDamage(attackDamage);
+    }
+
+    public void Die()
+    {
+        if (isDead) return;
+        isDead = true;
+        CancelInvoke();
+        StopAllCoroutines();
+        rb.linearVelocity = Vector2.zero;
+        Destroy(gameObject, 0.5f);
+    }
+
     float DistanceToPlayer()
     {
+        if (player == null) return float.MaxValue;
         return Vector2.Distance(bodyCol.bounds.center, player.position);
     }
 
     bool IsGroundAhead()
     {
         if (groundCheck == null) return true;
-
-        return Physics2D.Raycast(
-            groundCheck.position,
-            Vector2.down,
-            groundCheckDistance,
-            groundLayer
-        );
+        return Physics2D.Raycast(groundCheck.position, Vector2.down, groundCheckDistance, groundLayer);
     }
 
     void Flip()
     {
-        moveDir *= -1;
+        moveDir     *= -1;
         lastFlipTime = Time.time;
-
         Vector3 scale = transform.localScale;
         scale.x = Mathf.Abs(scale.x) * moveDir;
         transform.localScale = scale;
@@ -264,31 +207,22 @@ public class MonsterAI : MonoBehaviour
     void AutoPlaceGroundCheck()
     {
         if (isFlying || groundCheck == null || bodyCol == null) return;
-
-        float footY = bodyCol.bounds.min.y;
         Vector3 pos = groundCheck.position;
-        pos.y = footY - 0.05f;
+        pos.y = bodyCol.bounds.min.y - 0.05f;
         groundCheck.position = pos;
     }
 
-    // =========================
-    // Gizmos
-    // =========================
     void OnDrawGizmosSelected()
     {
         Gizmos.color = Color.yellow;
         Gizmos.DrawWireSphere(transform.position, detectRange);
-
         Gizmos.color = Color.red;
         Gizmos.DrawWireSphere(transform.position, attackRange);
-
         if (groundCheck != null)
         {
             Gizmos.color = Color.cyan;
-            Gizmos.DrawLine(
-                groundCheck.position,
-                groundCheck.position + Vector3.down * groundCheckDistance
-            );
+            Gizmos.DrawLine(groundCheck.position,
+                groundCheck.position + Vector3.down * groundCheckDistance);
         }
     }
 }

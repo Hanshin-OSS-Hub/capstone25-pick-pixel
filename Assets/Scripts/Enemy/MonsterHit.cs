@@ -4,17 +4,16 @@ public class MonsterHit : MonoBehaviour
 {
     public int hp = 3;
 
-    private void OnTriggerEnter2D(Collider2D other)
+    void OnTriggerEnter2D(Collider2D other)
     {
-        if (other.CompareTag("PlayerAttack"))
+        if (!other.CompareTag("PlayerAttack")) return;
+        hp--;
+        Debug.Log($"ëª¬ìŠ¤í„° í”¼ê²©! ë‚¨ì€ HP: {hp}");
+        if (hp <= 0)
         {
-            hp--;
-            Debug.Log("¸ó½ºÅÍ ÇÇ°İ! ³²Àº HP: " + hp);
-
-            if (hp <= 0)
-            {
-                Destroy(transform.parent.gameObject);
-            }
+            var ai = GetComponentInParent<MonsterAI>();
+            if (ai != null) ai.Die();
+            else Destroy(transform.parent.gameObject);
         }
     }
 }

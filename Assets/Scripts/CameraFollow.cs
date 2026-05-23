@@ -6,97 +6,85 @@ public class CameraFollow : MonoBehaviour
     [Header("Follow Target")]
     public Transform target;
 
-    [Header("Tilemap (World Bounds)")]
-    public Tilemap tilemap;
-
     [Header("Camera Settings")]
     public float smoothDampTime = 0.15f;
-    public Vector2 deadZoneSize = new Vector2(4f, 2.5f);  // Deadzone (Àý´ë ¿òÁ÷ÀÌÁö ¾Ê´Â ¿µ¿ª)
+    public Vector2 deadZoneSize = new Vector2(4f, 2.5f);
 
-    [Header("Room Settings (Optional)")]
-    public bool useRoomMode = false;
-    public Vector2 roomSize = new Vector2(16f, 9f); // ¹æ Å©±â
-    private Vector2 currentRoomCenter;
+    [Header("Debug")]
+    public bool showGizmos = true;
 
     private Vector3 smoothVelocity = Vector3.zero;
-
-    private float camWidth;
-    private float camHeight;
+    private float camWidth, camHeight;
     private float minX, maxX, minY, maxY;
+    private bool hasBounds = false;
 
     void Start()
     {
-        // ==== Ä«¸Þ¶ó Å©±â °è»ê ====
         Camera cam = Camera.main;
-        camHeight = cam.orthographicSize * 2;
-        camWidth = camHeight * cam.aspect;
+        camHeight = cam.orthographicSize * 2f;
+        camWidth  = camHeight * cam.aspect;
+        SetNoBounds();
+    }
 
-        // ==== Å¸ÀÏ¸Ê °æ°è ¾ÐÃà ====
+    public void SetRoomBounds(Tilemap tilemap)
+    {
+        if (tilemap == null) { SetNoBounds(); return; }
+
         tilemap.CompressBounds();
-        BoundsInt bounds = tilemap.cellBounds;
+        BoundsInt bounds   = tilemap.cellBounds;
+        Vector3   minWorld = tilemap.CellToWorld(bounds.min);
+        Vector3   maxWorld = tilemap.CellToWorld(bounds.max) + tilemap.layoutGrid.cellSize;
 
-        Vector3 minWorld = tilemap.CellToWorld(bounds.min);
-        Vector3 maxWorld = tilemap.CellToWorld(bounds.max) + tilemap.layoutGrid.cellSize;
-
-        // ==== Clamp °è»ê ====
-        minX = minWorld.x + camWidth / 2f;
-        maxX = maxWorld.x - camWidth / 2f;
-
+        minX = minWorld.x + camWidth  / 2f;
+        maxX = maxWorld.x - camWidth  / 2f;
         minY = minWorld.y + camHeight / 2f;
         maxY = maxWorld.y - camHeight / 2f;
 
-        if (useRoomMode)
-        {
-            currentRoomCenter = GetRoomCenter(target.position);
-        }
+        if (minX > maxX) { float mid = (minWorld.x + maxWorld.x) / 2f; minX = mid; maxX = mid; }
+        if (minY > maxY) { float mid = (minWorld.y + maxWorld.y) / 2f; minY = mid; maxY = mid; }
+
+        hasBounds = true;
+        Debug.Log($"[CameraFollow] Bounds ê°±ì‹  â†’ X({minX:F1}~{maxX:F1}) Y({minY:F1}~{maxY:F1})");
+    }
+
+    void SetNoBounds()
+    {
+        minX = float.MinValue; maxX = float.MaxValue;
+        minY = float.MinValue; maxY = float.MaxValue;
+        hasBounds = false;
     }
 
     void LateUpdate()
     {
         if (!target) return;
-
         Vector3 cameraPos = transform.position;
-
-        // ================ DEATHZONE °è»ê ================
-        Vector2 deadMin = new Vector2(cameraPos.x - deadZoneSize.x / 2f, cameraPos.y - deadZoneSize.y / 2f);
-        Vector2 deadMax = new Vector2(cameraPos.x + deadZoneSize.x / 2f, cameraPos.y + deadZoneSize.y / 2f);
-
         Vector3 targetPos = cameraPos;
+        float halfDX = deadZoneSize.x / 2f;
+        float halfDY = deadZoneSize.y / 2f;
 
-        if (target.position.x < deadMin.x) targetPos.x = target.position.x;
-        if (target.position.x > deadMax.x) targetPos.x = target.position.x;
-        if (target.position.y < deadMin.y) targetPos.y = target.position.y;
-        if (target.position.y > deadMax.y) targetPos.y = target.position.y;
+        if      (target.position.x < cameraPos.x - halfDX) targetPos.x = target.position.x + halfDX;
+        else if (target.position.x > cameraPos.x + halfDX) targetPos.x = target.position.x - halfDX;
+        if      (target.position.y < cameraPos.y - halfDY) targetPos.y = target.position.y + halfDY;
+        else if (target.position.y > cameraPos.y + halfDY) targetPos.y = target.position.y - halfDY;
 
-        // ================================================
-        // ROOM MODE (´ø±×¸®µå½Ä ¹æ ÀüÈ¯)
-        // ================================================
-        if (useRoomMode)
-        {
-            Vector2 roomCenter = GetRoomCenter(target.position);
-
-            if (roomCenter != currentRoomCenter)
-                currentRoomCenter = Vector2.Lerp(currentRoomCenter, roomCenter, 0.12f);
-
-            targetPos = new Vector3(currentRoomCenter.x, currentRoomCenter.y, cameraPos.z);
-        }
-
-        // ================ ºÎµå·¯¿î µû¶ó°¡±â ================
         float x = Mathf.SmoothDamp(cameraPos.x, targetPos.x, ref smoothVelocity.x, smoothDampTime);
         float y = Mathf.SmoothDamp(cameraPos.y, targetPos.y, ref smoothVelocity.y, smoothDampTime);
 
-        // ================ Clamp (Å¸ÀÏ °æ°è) ================
         x = Mathf.Clamp(x, minX, maxX);
         y = Mathf.Clamp(y, minY, maxY);
 
         transform.position = new Vector3(x, y, cameraPos.z);
     }
 
-    // ¹æÀÇ Áß½É ÁÂÇ¥ ±¸ÇÏ±â
-    Vector2 GetRoomCenter(Vector2 pos)
+    void OnDrawGizmos()
     {
-        float roomX = Mathf.Floor(pos.x / roomSize.x) * roomSize.x + roomSize.x / 2f;
-        float roomY = Mathf.Floor(pos.y / roomSize.y) * roomSize.y + roomSize.y / 2f;
-        return new Vector2(roomX, roomY);
+        if (!showGizmos || !hasBounds) return;
+        Gizmos.color = new Color(0f, 1f, 0f, 0.4f);
+        Gizmos.DrawWireCube(
+            new Vector3((minX + maxX) / 2f, (minY + maxY) / 2f, 0f),
+            new Vector3(maxX - minX, maxY - minY, 0f));
+        Gizmos.color = new Color(1f, 1f, 0f, 0.3f);
+        Gizmos.DrawWireCube(transform.position,
+            new Vector3(deadZoneSize.x, deadZoneSize.y, 0f));
     }
 }
