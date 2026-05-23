@@ -15,9 +15,6 @@ public class MapManager : MonoBehaviour
     [SerializeField] private int minCombatRooms = 2;
     [SerializeField] private int maxCombatRooms = 3;
 
-    [Header("=== 카메라 Bounds용 Tilemap 이름 ===")]
-    [SerializeField] private string boundsTilemapName = "Platforms";
-
     private List<GameObject> currentRunRooms = new List<GameObject>();
     private int currentRoomIndex = 0;
     private int lastCombatIndex  = -1;
@@ -76,18 +73,25 @@ public class MapManager : MonoBehaviour
         room.SetActive(true);
         Debug.Log($"현재 방: {room.name} ({currentRoomIndex + 1}/{currentRunRooms.Count})");
 
-        Tilemap boundsTilemap = null;
+        // 방 안의 모든 Tilemap 유니온 bounds로 카메라 범위 설정
+        var camFollow = Camera.main?.GetComponent<CameraFollow>();
+        if (camFollow == null) return;
+
+        Bounds? unionBounds = null;
         foreach (var tm in room.GetComponentsInChildren<Tilemap>())
         {
-            if (tm.gameObject.name == boundsTilemapName)
-            { boundsTilemap = tm; break; }
+            tm.CompressBounds();
+            if (tm.cellBounds.size == Vector3Int.zero) continue;
+            Vector3 minW = tm.CellToWorld(tm.cellBounds.min);
+            Vector3 maxW = tm.CellToWorld(tm.cellBounds.max) + tm.layoutGrid.cellSize;
+            Bounds tmBounds = new Bounds();
+            tmBounds.SetMinMax(minW, maxW);
+            if (unionBounds == null) unionBounds = tmBounds;
+            else { Bounds b = unionBounds.Value; b.Encapsulate(tmBounds); unionBounds = b; }
         }
 
-        if (boundsTilemap == null)
-            Debug.LogWarning($"[MapManager] '{boundsTilemapName}' Tilemap을 {room.name}에서 찾지 못했습니다!");
-
-        var camFollow = Camera.main?.GetComponent<CameraFollow>();
-        if (camFollow != null) camFollow.SetRoomBounds(boundsTilemap);
+        if (unionBounds.HasValue) camFollow.SetRoomBounds(unionBounds.Value);
+        else camFollow.ClearBounds();
     }
 
     public void GoToNextRoom()

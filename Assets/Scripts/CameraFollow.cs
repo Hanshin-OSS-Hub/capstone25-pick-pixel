@@ -8,7 +8,7 @@ public class CameraFollow : MonoBehaviour
 
     [Header("Camera Settings")]
     public float smoothDampTime = 0.15f;
-    public Vector2 deadZoneSize = new Vector2(4f, 2.5f);
+    public float snapDistance   = 10f;  // 방 이동 시 즉시 스냅 거리
 
     [Header("Debug")]
     public bool showGizmos = true;
@@ -18,7 +18,7 @@ public class CameraFollow : MonoBehaviour
     private float minX, maxX, minY, maxY;
     private bool hasBounds = false;
 
-    void Start()
+    void Awake()
     {
         Camera cam = Camera.main;
         camHeight = cam.orthographicSize * 2f;
@@ -26,26 +26,36 @@ public class CameraFollow : MonoBehaviour
         SetNoBounds();
     }
 
+    // MapManager에서 유니온 Bounds로 호출
+    public void SetRoomBounds(Bounds worldBounds)
+    {
+        minX = worldBounds.min.x + camWidth  / 2f;
+        maxX = worldBounds.max.x - camWidth  / 2f;
+        minY = worldBounds.min.y + camHeight / 2f;
+        maxY = worldBounds.max.y - camHeight / 2f;
+
+        if (minX > maxX) { minX = float.MinValue; maxX = float.MaxValue; }
+        if (minY > maxY) { minY = float.MinValue; maxY = float.MaxValue; }
+
+        hasBounds = true;
+        Debug.Log($"[CameraFollow] Bounds 갱신 → X({minX:F1}~{maxX:F1}) Y({minY:F1}~{maxY:F1})");
+    }
+
+    // 이름 기반 구버전 호환 (직접 Tilemap 넘길 때)
     public void SetRoomBounds(Tilemap tilemap)
     {
         if (tilemap == null) { SetNoBounds(); return; }
 
         tilemap.CompressBounds();
-        BoundsInt bounds   = tilemap.cellBounds;
-        Vector3   minWorld = tilemap.CellToWorld(bounds.min);
-        Vector3   maxWorld = tilemap.CellToWorld(bounds.max) + tilemap.layoutGrid.cellSize;
-
-        minX = minWorld.x + camWidth  / 2f;
-        maxX = maxWorld.x - camWidth  / 2f;
-        minY = minWorld.y + camHeight / 2f;
-        maxY = maxWorld.y - camHeight / 2f;
-
-        if (minX > maxX) { float mid = (minWorld.x + maxWorld.x) / 2f; minX = mid; maxX = mid; }
-        if (minY > maxY) { float mid = (minWorld.y + maxWorld.y) / 2f; minY = mid; maxY = mid; }
-
-        hasBounds = true;
-        Debug.Log($"[CameraFollow] Bounds 갱신 → X({minX:F1}~{maxX:F1}) Y({minY:F1}~{maxY:F1})");
+        BoundsInt bi = tilemap.cellBounds;
+        Vector3 minW = tilemap.CellToWorld(bi.min);
+        Vector3 maxW = tilemap.CellToWorld(bi.max) + tilemap.layoutGrid.cellSize;
+        Bounds b = new Bounds();
+        b.SetMinMax(minW, maxW);
+        SetRoomBounds(b);
     }
+
+    public void ClearBounds() { SetNoBounds(); }
 
     void SetNoBounds()
     {
@@ -57,18 +67,24 @@ public class CameraFollow : MonoBehaviour
     void LateUpdate()
     {
         if (!target) return;
+
         Vector3 cameraPos = transform.position;
-        Vector3 targetPos = cameraPos;
-        float halfDX = deadZoneSize.x / 2f;
-        float halfDY = deadZoneSize.y / 2f;
+        Vector2 cam2D     = new Vector2(cameraPos.x, cameraPos.y);
+        Vector2 target2D  = new Vector2(target.position.x, target.position.y);
 
-        if      (target.position.x < cameraPos.x - halfDX) targetPos.x = target.position.x + halfDX;
-        else if (target.position.x > cameraPos.x + halfDX) targetPos.x = target.position.x - halfDX;
-        if      (target.position.y < cameraPos.y - halfDY) targetPos.y = target.position.y + halfDY;
-        else if (target.position.y > cameraPos.y + halfDY) targetPos.y = target.position.y - halfDY;
+        // 방 이동처럼 멀리 떨어지면 즉시 스냅
+        if (Vector2.Distance(cam2D, target2D) > snapDistance)
+        {
+            smoothVelocity = Vector3.zero;
+            transform.position = new Vector3(
+                Mathf.Clamp(target2D.x, minX, maxX),
+                Mathf.Clamp(target2D.y, minY, maxY),
+                cameraPos.z);
+            return;
+        }
 
-        float x = Mathf.SmoothDamp(cameraPos.x, targetPos.x, ref smoothVelocity.x, smoothDampTime);
-        float y = Mathf.SmoothDamp(cameraPos.y, targetPos.y, ref smoothVelocity.y, smoothDampTime);
+        float x = Mathf.SmoothDamp(cameraPos.x, target.position.x, ref smoothVelocity.x, smoothDampTime);
+        float y = Mathf.SmoothDamp(cameraPos.y, target.position.y, ref smoothVelocity.y, smoothDampTime);
 
         x = Mathf.Clamp(x, minX, maxX);
         y = Mathf.Clamp(y, minY, maxY);
@@ -83,8 +99,5 @@ public class CameraFollow : MonoBehaviour
         Gizmos.DrawWireCube(
             new Vector3((minX + maxX) / 2f, (minY + maxY) / 2f, 0f),
             new Vector3(maxX - minX, maxY - minY, 0f));
-        Gizmos.color = new Color(1f, 1f, 0f, 0.3f);
-        Gizmos.DrawWireCube(transform.position,
-            new Vector3(deadZoneSize.x, deadZoneSize.y, 0f));
     }
 }
