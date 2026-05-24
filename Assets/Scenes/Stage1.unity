@@ -119,6 +119,11 @@ NavMeshSettings:
     debug:
       m_Flags: 0
   m_NavMeshData: {fileID: 0}
+--- !u!1 &7816529 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 5409021842860965954, guid: d5016ddebc5410446a49bb9fd1123a6f, type: 3}
+  m_PrefabInstance: {fileID: 596904224}
+  m_PrefabAsset: {fileID: 0}
 --- !u!1001 &23741893
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -130,6 +135,14 @@ PrefabInstance:
     - target: {fileID: 2698146303061829311, guid: 3d9e9b02c2e95ca4196eb07b9451c32f, type: 3}
       propertyPath: m_Offset.y
       value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 3310081268125745436, guid: 3d9e9b02c2e95ca4196eb07b9451c32f, type: 3}
+      propertyPath: hitCollider
+      value: 
+      objectReference: {fileID: 360267644}
+    - target: {fileID: 3310081268125745436, guid: 3d9e9b02c2e95ca4196eb07b9451c32f, type: 3}
+      propertyPath: attackDuration
+      value: 0.9
       objectReference: {fileID: 0}
     - target: {fileID: 3890178771781448672, guid: 3d9e9b02c2e95ca4196eb07b9451c32f, type: 3}
       propertyPath: m_LocalPosition.x
@@ -210,11 +223,14 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::MapManager
   startRoom: {fileID: 786758775}
-  exitRoom: {fileID: 0}
+  exitRoom: {fileID: 247385936}
   combatRooms:
-  - {fileID: 1670864923}
-  - {fileID: 754813410}
-  - {fileID: 82669545}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
+  - {fileID: 0}
   minCombatRooms: 2
   maxCombatRooms: 3
 --- !u!4 &57710397
@@ -4249,6 +4265,14 @@ PrefabInstance:
     - target: {fileID: 7286960630215971884, guid: 55f7080b514d9a447b72dc420b7f6905, type: 3}
       propertyPath: m_Offset.y
       value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8023022494554468615, guid: 55f7080b514d9a447b72dc420b7f6905, type: 3}
+      propertyPath: hitCollider
+      value: 
+      objectReference: {fileID: 1249772790}
+    - target: {fileID: 8023022494554468615, guid: 55f7080b514d9a447b72dc420b7f6905, type: 3}
+      propertyPath: attackDuration
+      value: 0.9
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
@@ -9272,6 +9296,11 @@ Transform:
   - {fileID: 2110014766}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &360267644 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 2087495170632852914, guid: 3d9e9b02c2e95ca4196eb07b9451c32f, type: 3}
+  m_PrefabInstance: {fileID: 23741893}
+  m_PrefabAsset: {fileID: 0}
 --- !u!1 &378165129
 GameObject:
   m_ObjectHideFlags: 0
@@ -17050,6 +17079,14 @@ PrefabInstance:
       propertyPath: player
       value: 
       objectReference: {fileID: 1323319271}
+    - target: {fileID: 1651085451761591095, guid: d5016ddebc5410446a49bb9fd1123a6f, type: 3}
+      propertyPath: hitCollider
+      value: 
+      objectReference: {fileID: 7816529}
+    - target: {fileID: 1651085451761591095, guid: d5016ddebc5410446a49bb9fd1123a6f, type: 3}
+      propertyPath: attackDuration
+      value: 0.9
+      objectReference: {fileID: 0}
     - target: {fileID: 6456738967649227321, guid: d5016ddebc5410446a49bb9fd1123a6f, type: 3}
       propertyPath: m_Name
       value: Monster_Oni
@@ -52351,6 +52388,11 @@ PrefabInstance:
 Transform:
   m_CorrespondingSourceObject: {fileID: 399981455654024625, guid: 2e4979e4b52b36c92aba63431c721818, type: 3}
   m_PrefabInstance: {fileID: 1241216281}
+  m_PrefabAsset: {fileID: 0}
+--- !u!1 &1249772790 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 1352534930769259482, guid: 55f7080b514d9a447b72dc420b7f6905, type: 3}
+  m_PrefabInstance: {fileID: 180868490}
   m_PrefabAsset: {fileID: 0}
 --- !u!1 &1268663927
 GameObject:
