@@ -25,9 +25,9 @@ public class PlayerController : MonoBehaviour
     public float attackComboWindow = 1.0f;
 
     [Header("공격 히트박스")]
-    public float attackHitWidth  = 1.5f;
+    public float attackHitWidth  = 2.2f;
     public float attackHitHeight = 2.0f;
-    public float attackHitOffset = 0.9f;
+    public float attackHitOffset = 1.4f;
     public int   attackDamage    = 1;
 
     [Header("HP")]

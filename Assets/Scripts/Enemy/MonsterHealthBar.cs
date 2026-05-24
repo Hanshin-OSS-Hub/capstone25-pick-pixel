@@ -26,8 +26,8 @@ public class MonsterHealthBar : MonoBehaviour
         canvas.sortingOrder = 20;
 
         var cvRect = cvGO.GetComponent<RectTransform>();
-        cvRect.localScale    = Vector3.one * 0.013f;
-        cvRect.sizeDelta     = new Vector2(100f, 12f);
+        cvRect.localScale    = Vector3.one * 0.016f;
+        cvRect.sizeDelta     = new Vector2(120f, 16f);
         cvRect.localPosition = new Vector3(0f, yOffset, 0f);
 
         // 배경 (검은색)

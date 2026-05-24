@@ -77058,6 +77058,14 @@ PrefabInstance:
       propertyPath: healthBar
       value: 
       objectReference: {fileID: 1465365761}
+    - target: {fileID: 2641360806324040915, guid: 4ac5082d73908f7438dfcea64d98ee9b, type: 3}
+      propertyPath: attackHitWidth
+      value: 2.2
+      objectReference: {fileID: 0}
+    - target: {fileID: 2641360806324040915, guid: 4ac5082d73908f7438dfcea64d98ee9b, type: 3}
+      propertyPath: attackHitOffset
+      value: 1.4
+      objectReference: {fileID: 0}
     - target: {fileID: 4349520619956350239, guid: 4ac5082d73908f7438dfcea64d98ee9b, type: 3}
       propertyPath: m_Name
       value: Player
