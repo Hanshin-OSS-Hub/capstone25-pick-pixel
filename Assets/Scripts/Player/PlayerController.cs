@@ -1,5 +1,6 @@
 using UnityEngine;
 using System.Collections;
+using System.Collections.Generic;
 
 [RequireComponent(typeof(Rigidbody2D))]
 [RequireComponent(typeof(Animator))]
@@ -22,6 +23,12 @@ public class PlayerController : MonoBehaviour
     [Header("Attack")]
     public float attackCooldown    = 0.25f;
     public float attackComboWindow = 1.0f;
+
+    [Header("공격 히트박스")]
+    public float attackHitWidth  = 1.5f;
+    public float attackHitHeight = 2.0f;
+    public float attackHitOffset = 0.9f;
+    public int   attackDamage    = 1;
 
     [Header("HP")]
     public HealthBar healthBar;
@@ -123,6 +130,7 @@ public class PlayerController : MonoBehaviour
             if (timeSinceAttack > attackComboWindow) currentAttack = 1;
             anim.SetTrigger("Attack" + currentAttack);
             timeSinceAttack = 0f;
+            StartCoroutine(AttackHitRoutine(currentAttack));
             return;
         }
 
@@ -213,6 +221,29 @@ public class PlayerController : MonoBehaviour
         yield return new WaitForSeconds(dashDuration);
         rb.gravityScale = originalGravity;
         isDashing       = false;
+    }
+
+    IEnumerator AttackHitRoutine(int attackNum)
+    {
+        // 콤보별 칼이 닿는 타이밍
+        float delay = attackNum == 1 ? 0.15f : attackNum == 2 ? 0.20f : 0.25f;
+        yield return new WaitForSeconds(delay);
+        if (isDead) yield break;
+
+        float   dir    = facingRight ? 1f : -1f;
+        Vector2 center = (Vector2)transform.position
+                       + new Vector2(dir * attackHitOffset, 1.2f);
+        Vector2 size   = new Vector2(attackHitWidth, attackHitHeight);
+
+        Collider2D[]        cols    = Physics2D.OverlapBoxAll(center, size, 0f);
+        HashSet<MonsterHit> damaged = new HashSet<MonsterHit>();
+        foreach (var col in cols)
+        {
+            // 루트 오브젝트에서 MonsterHit 탐색 (HitCollider 비활성 포함)
+            MonsterHit mh = col.transform.root.GetComponentInChildren<MonsterHit>(true);
+            if (mh != null && damaged.Add(mh))
+                mh.TakeDamage(attackDamage);
+        }
     }
 
     IEnumerator DropThrough()
