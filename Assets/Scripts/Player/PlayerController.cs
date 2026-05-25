@@ -69,12 +69,16 @@ public class PlayerController : MonoBehaviour
     private bool isWallSliding = false;
     private bool isDashing = false;
     private bool isJumpHeld = false;
+    private bool isDead = false;
 
     private int jumpCount = 0;
     private int currentAttack = 0;
     private float timeSinceAttack = 0f;
     private float delayToIdle = 0f;
     private float lastDashTime = -999f;
+
+    // 외부 읽기용
+    public bool IsDead => isDead;
 
     // ═════════════════════════════════════════════════════════════════════
     void Awake()
@@ -287,6 +291,37 @@ public class PlayerController : MonoBehaviour
             yield return new WaitForSeconds(0.4f);
             Physics2D.IgnoreCollision(col, hit.collider, false);
         }
+    }
+
+    // ── 사망 처리 (DeathZone 등 외부에서 호출) ───────────────────────────
+    /// <summary>
+    /// 플레이어를 즉사시킨다.
+    /// DeathZone / 몬스터 즉사 공격 등에서 호출.
+    /// 중복 호출은 무시된다.
+    /// </summary>
+    public void Die()
+    {
+        if (isDead) return;
+        isDead = true;
+
+        // 이동 즉시 정지
+        rb.linearVelocity = Vector2.zero;
+
+        // HealthBar HP → 0
+        HealthBar hb = GetComponentInChildren<HealthBar>();
+        if (hb == null)
+            hb = FindFirstObjectByType<HealthBar>();
+        if (hb != null)
+            hb.TakeDamage(hb.MaxHp);
+
+        // Death 애니메이션 재생
+        anim.SetBool("noBlood", noBlood);
+        anim.SetTrigger("Death");
+
+        // 입력 차단 (Update 중단)
+        enabled = false;
+
+        Debug.Log("[PlayerController] 플레이어 사망");
     }
 
     // ── 방향 전환 ─────────────────────────────────────────────────────────
