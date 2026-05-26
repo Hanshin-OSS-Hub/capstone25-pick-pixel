@@ -43,7 +43,21 @@ public class CameraFollow : MonoBehaviour
 
     void Start()
     {
-        // 시작 시 카메라를 플레이어 위치로 즉시 스냅 (잘못된 위치에서 시작하는 문제 방지)
+        // 한 프레임 대기 후 스냅 → MapManager.Start()가 플레이어를 이동시킨 뒤 스냅
+        StartCoroutine(SnapNextFrame());
+    }
+
+    System.Collections.IEnumerator SnapNextFrame()
+    {
+        yield return null; // 모든 Start() 완료 후 첫 번째 프레임 대기
+
+        // target이 아직 없으면 한 번 더 탐색
+        if (target == null)
+        {
+            GameObject p = GameObject.FindWithTag("Player");
+            if (p != null) target = p.transform;
+        }
+
         if (target != null)
         {
             transform.position = new Vector3(
@@ -51,6 +65,7 @@ public class CameraFollow : MonoBehaviour
                 Mathf.Clamp(target.position.y, minY, maxY),
                 transform.position.z);
             smoothVelocity = Vector3.zero;
+            Debug.Log($"[CameraFollow] 초기 스냅 완료 → {transform.position}");
         }
     }
 

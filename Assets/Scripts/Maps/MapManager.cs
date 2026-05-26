@@ -42,12 +42,22 @@ public class MapManager : MonoBehaviour
     /// </summary>
     private void SpawnPlayerInStartRoom()
     {
-        if (startRoom == null) return;
+        if (startRoom == null)
+        {
+            Debug.LogWarning("[MapManager] startRoom이 연결되지 않았습니다.");
+            return;
+        }
 
+        // Player 태그 → PlayerController 컴포넌트 순으로 탐색
         GameObject playerObj = GameObject.FindWithTag("Player");
         if (playerObj == null)
         {
-            Debug.LogWarning("[MapManager] Player 태그 오브젝트를 찾지 못했습니다.");
+            PlayerController pc = FindFirstObjectByType<PlayerController>();
+            if (pc != null) playerObj = pc.gameObject;
+        }
+        if (playerObj == null)
+        {
+            Debug.LogWarning("[MapManager] Player 오브젝트를 찾지 못했습니다.");
             return;
         }
 
