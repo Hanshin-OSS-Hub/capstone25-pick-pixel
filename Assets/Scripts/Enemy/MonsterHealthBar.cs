@@ -23,7 +23,9 @@ public class MonsterHealthBar : MonoBehaviour
         // (Canvas 추가 전 Transform.localPosition 설정은 RectTransform 생성 시 초기화됨)
         var canvas = cvGO.AddComponent<Canvas>();
         canvas.renderMode = RenderMode.WorldSpace;
-        canvas.sortingOrder = 20;
+        canvas.overrideSorting = true;          // URP 2D에서 WorldSpace 캔버스 표시에 필수
+        canvas.sortingLayerName = "Default";
+        canvas.sortingOrder = 100;               // 몬스터/타일 위에 확실히 표시
 
         var cvRect = cvGO.GetComponent<RectTransform>();
         cvRect.localScale    = Vector3.one * 0.016f;

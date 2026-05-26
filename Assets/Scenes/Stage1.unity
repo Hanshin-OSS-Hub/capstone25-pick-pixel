@@ -56061,9 +56061,9 @@ MonoBehaviour:
   barFill: {fileID: 1729629006}
   hpText: {fileID: 550566162}
   maxHp: 100
-  colorFull: {r: 1, g: 1, b: 1, a: 1}
-  colorMid: {r: 1, g: 1, b: 1, a: 1}
-  colorLow: {r: 1, g: 1, b: 1, a: 1}
+  colorFull: {r: 0.2, g: 0.85, b: 0.2, a: 1}
+  colorMid: {r: 1, g: 0.6, b: 0, a: 1}
+  colorLow: {r: 1, g: 0.1, b: 0.1, a: 1}
   smoothSpeed: 5
 --- !u!1 &1478647929
 GameObject:

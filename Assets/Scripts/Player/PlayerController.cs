@@ -61,6 +61,9 @@ public class PlayerController : MonoBehaviour
     private float delayToIdle     = 0f;
     private float lastDashTime    = -999f;
 
+    // 외부 읽기용 (DeathZone 등에서 사용)
+    public bool IsDead => isDead;
+
     void Awake()
     {
         rb   = GetComponent<Rigidbody2D>();
@@ -192,10 +195,13 @@ public class PlayerController : MonoBehaviour
         if (healthBar != null) healthBar.Heal(amount);
     }
 
-    void Die()
+    // public으로 외부(DeathZone 등)에서도 호출 가능
+    public void Die()
     {
+        if (isDead) return;
         isDead = true;
         rb.linearVelocity = Vector2.zero;
+        if (healthBar != null) healthBar.TakeDamage(healthBar.MaxHp);
         anim.SetBool("noBlood", noBlood);
         anim.SetTrigger("Death");
         Debug.Log("[Player] 사망!");
