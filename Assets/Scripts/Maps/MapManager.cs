@@ -6,40 +6,41 @@ public class MapManager : MonoBehaviour
 {
     [Header("=== 고정 방 (Scene에서 드래그) ===")]
     [SerializeField] private GameObject startRoom;
-    [SerializeField] private GameObject bossRoom;   // 보스방 — BGM 없음 (추후 설정)
+    [SerializeField] private GameObject bossRoom;
     [SerializeField] private GameObject exitRoom;
 
-    [Header("=== 전투방들 (Scene에서 드래그) ===")]
+    [Header("=== 전투방 (Combat) ===")]
     [SerializeField] private GameObject[] combatRooms;
 
-    [Header("=== 설정 ===")]
-    [SerializeField] private int minCombatRooms = 2;
-    [SerializeField] private int maxCombatRooms = 3;
+    [Header("=== 수직맵 (Vertical) ===")]
+    [SerializeField] private GameObject[] verticalRooms;
+
+    [Header("=== 생성 설정 ===")]
+    [SerializeField] private int minCombatRooms  = 3;   // 전투방 최소
+    [SerializeField] private int maxCombatRooms  = 5;   // 전투방 최대
+    [SerializeField] private int minVerticalRooms = 1;  // 수직맵 최소
+    [SerializeField] private int maxVerticalRooms = 2;  // 수직맵 최대
 
     private List<GameObject> currentRunRooms = new List<GameObject>();
     private int currentRoomIndex = 0;
-    private int lastCombatIndex  = -1;
-    private int bossRoomIndex    = -1;  // BGM 전환용
+    private int bossRoomIndex    = -1;
 
     public GameObject CurrentRoom      => currentRunRooms.Count > 0 ? currentRunRooms[currentRoomIndex] : null;
     public int        CurrentRoomIndex => currentRoomIndex;
     public int        TotalRooms       => currentRunRooms.Count;
 
+    // ═══════════════════════════════════════════════════════════
     void Start()
     {
         GenerateRunOrder();
         ActivateCurrentRoom();
         SpawnPlayerInStartRoom();
 
-        // 스테이지 시작 BGM
         if (AudioManager.Instance != null)
             AudioManager.Instance.PlayStageBGM();
     }
 
-    /// <summary>
-    /// 게임 시작 시 플레이어를 startRoom의 Portal_Left 위치로 워프
-    /// Portal_Left가 없으면 startRoom 중심에 배치
-    /// </summary>
+    // ── 플레이어 초기 배치 ──────────────────────────────────────
     private void SpawnPlayerInStartRoom()
     {
         if (startRoom == null)
@@ -48,7 +49,6 @@ public class MapManager : MonoBehaviour
             return;
         }
 
-        // Player 태그 → PlayerController 컴포넌트 순으로 탐색
         GameObject playerObj = GameObject.FindWithTag("Player");
         if (playerObj == null)
         {
@@ -61,82 +61,118 @@ public class MapManager : MonoBehaviour
             return;
         }
 
-        // Portals/Portal_Left 탐색
-        Transform portals     = startRoom.transform.Find("Portals");
-        Transform portalLeft  = portals?.Find("Portal_Left");
+        // Portals/Portal_Left 탐색 → 없으면 재귀 탐색 → 없으면 방 중심
+        Transform portals    = startRoom.transform.Find("Portals");
+        Transform portalLeft = portals?.Find("Portal_Left");
+
+        if (portalLeft == null)
+        {
+            foreach (Transform t in startRoom.GetComponentsInChildren<Transform>(true))
+            {
+                if (t.name == "Portal_Left") { portalLeft = t; break; }
+            }
+        }
 
         Vector3 spawnPos;
         if (portalLeft != null)
         {
-            // Portal_Left 오른쪽으로 약간 offset (포탈 안으로 안 빨려들어가도록)
             spawnPos = new Vector3(portalLeft.position.x + 3f,
-                                   portalLeft.position.y,
-                                   0f);
+                                   portalLeft.position.y, 0f);
         }
         else
         {
-            // Portal_Left 없으면 startRoom 중심에 배치
             spawnPos = new Vector3(startRoom.transform.position.x,
-                                   startRoom.transform.position.y,
-                                   0f);
-            Debug.LogWarning("[MapManager] startRoom에 Portals/Portal_Left가 없어 중심에 배치합니다.");
+                                   startRoom.transform.position.y, 0f);
+            Debug.LogWarning("[MapManager] Portal_Left를 찾지 못해 방 중심에 배치합니다.");
         }
 
         playerObj.transform.position = spawnPos;
         Debug.Log($"[MapManager] 플레이어 초기 배치 → {spawnPos}");
+
+        // 카메라 즉시 스냅 (CameraFollow.Start()보다 먼저 호출되지만 Awake는 완료됨)
+        var camFollow = Camera.main?.GetComponent<CameraFollow>();
+        camFollow?.SnapToTarget();
     }
 
+    // ── 런 순서 생성 ─────────────────────────────────────────────
     [ContextMenu("Generate Run Order")]
     public void GenerateRunOrder()
     {
         currentRunRooms.Clear();
         currentRoomIndex = 0;
-        lastCombatIndex  = -1;
         bossRoomIndex    = -1;
         DeactivateAllRooms();
 
         // 1. 시작방
         currentRunRooms.Add(startRoom);
 
-        // 2. 전투방 (연속 중복 방지 랜덤)
-        int combatCount = Random.Range(minCombatRooms, maxCombatRooms + 1);
-        for (int i = 0; i < combatCount; i++)
+        // 2. 중간 방 리스트 구성 (전투방 + 수직맵 보장)
+        var middleRooms = new List<GameObject>();
+
+        //  ▸ 전투방: minCombatRooms ~ maxCombatRooms 개 (연속 중복 방지)
+        int combatCount = Random.Range(minCombatRooms,
+                          Mathf.Max(minCombatRooms, maxCombatRooms) + 1);
+        int lastCombat  = -1;
+        for (int i = 0; i < combatCount && combatRooms != null && combatRooms.Length > 0; i++)
         {
-            int index = SelectWithoutRepeat(combatRooms.Length);
-            currentRunRooms.Add(combatRooms[index]);
+            int idx = PickWithoutRepeat(combatRooms.Length, ref lastCombat);
+            middleRooms.Add(combatRooms[idx]);
         }
 
-        // 3. 보스방 (연결된 경우)
+        //  ▸ 수직맵: minVerticalRooms ~ maxVerticalRooms 개 (연속 중복 방지)
+        int vertCount  = Random.Range(minVerticalRooms,
+                         Mathf.Max(minVerticalRooms, maxVerticalRooms) + 1);
+        int lastVert   = -1;
+        for (int i = 0; i < vertCount && verticalRooms != null && verticalRooms.Length > 0; i++)
+        {
+            int idx = PickWithoutRepeat(verticalRooms.Length, ref lastVert);
+            middleRooms.Add(verticalRooms[idx]);
+        }
+
+        // 3. 중간 방 셔플 (피셔-예이츠)
+        for (int i = middleRooms.Count - 1; i > 0; i--)
+        {
+            int j = Random.Range(0, i + 1);
+            (middleRooms[i], middleRooms[j]) = (middleRooms[j], middleRooms[i]);
+        }
+        foreach (var r in middleRooms)
+            currentRunRooms.Add(r);
+
+        // 4. 보스방
         if (bossRoom != null)
         {
             bossRoomIndex = currentRunRooms.Count;
             currentRunRooms.Add(bossRoom);
         }
 
-        // 4. 출구
+        // 5. 출구
         currentRunRooms.Add(exitRoom);
 
-        Debug.Log($"===== 런 생성 완료: 총 {currentRunRooms.Count}개 방 =====");
+        Debug.Log($"===== 런 생성: 총 {currentRunRooms.Count}개 방 " +
+                  $"(전투 {combatCount}개, 수직 {vertCount}개) =====");
     }
 
-    private int SelectWithoutRepeat(int max)
+    // 연속 중복 방지 선택 (ref 로 마지막 인덱스 추적)
+    private static int PickWithoutRepeat(int max, ref int lastIndex)
     {
         if (max <= 1) return 0;
-        List<int> available = new List<int>();
+        var available = new List<int>();
         for (int i = 0; i < max; i++)
-            if (i != lastCombatIndex) available.Add(i);
+            if (i != lastIndex) available.Add(i);
+        if (available.Count == 0) available.Add(0);   // 방이 1개뿐일 때 fallback
         int selected = available[Random.Range(0, available.Count)];
-        lastCombatIndex = selected;
+        lastIndex = selected;
         return selected;
     }
 
+    // ── 방 활성화/비활성화 ────────────────────────────────────────
     private void DeactivateAllRooms()
     {
         if (startRoom != null) startRoom.SetActive(false);
         if (bossRoom  != null) bossRoom.SetActive(false);
         if (exitRoom  != null) exitRoom.SetActive(false);
-        foreach (var room in combatRooms)
-            if (room != null) room.SetActive(false);
+        if (combatRooms  != null) foreach (var r in combatRooms)  if (r) r.SetActive(false);
+        if (verticalRooms != null) foreach (var r in verticalRooms) if (r) r.SetActive(false);
     }
 
     private void ActivateCurrentRoom()
@@ -161,16 +197,16 @@ public class MapManager : MonoBehaviour
                 if (tm.cellBounds.size == Vector3Int.zero) continue;
                 Vector3 minW = tm.CellToWorld(tm.cellBounds.min);
                 Vector3 maxW = tm.CellToWorld(tm.cellBounds.max) + tm.layoutGrid.cellSize;
-                Bounds tmBounds = new Bounds();
-                tmBounds.SetMinMax(minW, maxW);
-                if (unionBounds == null) unionBounds = tmBounds;
-                else { Bounds b = unionBounds.Value; b.Encapsulate(tmBounds); unionBounds = b; }
+                Bounds  tmB  = new Bounds();
+                tmB.SetMinMax(minW, maxW);
+                if (unionBounds == null) unionBounds = tmB;
+                else { Bounds b = unionBounds.Value; b.Encapsulate(tmB); unionBounds = b; }
             }
             if (unionBounds.HasValue) camFollow.SetRoomBounds(unionBounds.Value);
             else                      camFollow.ClearBounds();
         }
 
-        // BGM 전환
+        // BGM
         if (AudioManager.Instance != null)
         {
             bool isBoss = (bossRoomIndex >= 0 && currentRoomIndex == bossRoomIndex);
@@ -178,23 +214,21 @@ public class MapManager : MonoBehaviour
             else        AudioManager.Instance.PlayStageBGM();
         }
 
-        // 현재 방 밖에 있는 몬스터(씬 루트 등) → Patrol 리셋
         ResetOutOfRoomMonsters();
     }
 
-    // 현재 방의 자식이 아닌 MonsterAI를 모두 Patrol로 되돌림
     private void ResetOutOfRoomMonsters()
     {
         GameObject activeRoom = CurrentRoom;
         foreach (var monster in FindObjectsByType<MonsterAI>())
         {
-            // 현재 활성 방의 자식이면 건드리지 않음
             if (activeRoom != null && monster.transform.IsChildOf(activeRoom.transform))
                 continue;
             monster.ResetToPatrol();
         }
     }
 
+    // ── 공개 API ─────────────────────────────────────────────────
     public void GoToNextRoom()
     {
         if (currentRoomIndex < currentRunRooms.Count - 1)
@@ -215,6 +249,7 @@ public class MapManager : MonoBehaviour
     public void PrintCurrentRun()
     {
         for (int i = 0; i < currentRunRooms.Count; i++)
-            Debug.Log($"[{i}] {currentRunRooms[i]?.name}{(i == currentRoomIndex ? " ◀ 현재" : "")}");
+            Debug.Log($"[{i}] {currentRunRooms[i]?.name}" +
+                      $"{(i == currentRoomIndex ? " ◀ 현재" : "")}");
     }
 }

@@ -1,11 +1,11 @@
-using System.Collections;
 using UnityEngine;
 using UnityEngine.Tilemaps;
 
 /// <summary>
 /// 플레이어를 따라가는 2D 카메라 컨트롤러
-/// [DefaultExecutionOrder(1000)] 로 다른 모든 스크립트 LateUpdate 이후에 실행
-/// Pixel Perfect Camera 를 자동으로 비활성화해 충돌 방지
+/// [DefaultExecutionOrder(1000)] 로 모든 다른 스크립트의 Awake/Start/LateUpdate 이후 실행
+/// → MapManager.Start() 가 플레이어를 이미 배치한 뒤 CameraFollow.Start() 가 호출되므로
+///    코루틴(yield return null) 없이 즉시 스냅 가능
 /// </summary>
 [DefaultExecutionOrder(1000)]
 public class CameraFollow : MonoBehaviour
@@ -14,14 +14,14 @@ public class CameraFollow : MonoBehaviour
     public Transform target;
 
     [Header("이동 설정")]
-    public float smoothTime    = 0.15f;
-    public float snapDistance  = 8f;   // 이 거리 이상이면 즉시 스냅
+    public float smoothTime   = 0.15f;
+    public float snapDistance = 8f;   // 이 거리 이상이면 즉시 스냅
 
     [Header("디버그")]
     public bool showGizmos = true;
 
     // ─── 내부 상태 ─────────────────────────────────────────────
-    private Vector3 velocity  = Vector3.zero;
+    private Vector3 velocity = Vector3.zero;
     private float   camW, camH;
 
     private float minX = float.MinValue, maxX = float.MaxValue;
@@ -31,7 +31,6 @@ public class CameraFollow : MonoBehaviour
     // ═══════════════════════════════════════════════════════════
     void Awake()
     {
-        // 이 오브젝트에 달린 Camera 컴포넌트로 크기 계산
         Camera cam = GetComponent<Camera>();
         if (cam != null)
         {
@@ -40,7 +39,6 @@ public class CameraFollow : MonoBehaviour
         }
 
         // ── Pixel Perfect Camera 비활성화 (위치 덮어쓰기 방지) ──
-        // 리플렉션으로 처리해 패키지 미설치 환경에서도 컴파일 오류 없이 동작
         foreach (var b in GetComponents<Behaviour>())
         {
             if (b.GetType().Name == "PixelPerfectCamera")
@@ -51,33 +49,31 @@ public class CameraFollow : MonoBehaviour
             }
         }
 
-        // ── target 자동 탐색 ──────────────────────────────────
-        if (target == null)
-            TryFindPlayer();
+        if (target == null) TryFindPlayer();
     }
 
     void Start()
     {
-        // MapManager.Start() 가 플레이어를 이동시킨 뒤 스냅하기 위해 1프레임 대기
-        StartCoroutine(SnapAfterFrame());
+        // [DefaultExecutionOrder(1000)] 로 인해 MapManager.Start() 가 먼저 실행됨
+        // → 플레이어가 이미 startRoom 에 배치된 상태이므로 코루틴 없이 즉시 스냅
+        if (target == null) TryFindPlayer();
+        SnapToTarget();
     }
 
-    IEnumerator SnapAfterFrame()
+    /// <summary>
+    /// 카메라를 target 위치로 즉시 스냅. MapManager에서 플레이어 이동 후 호출 가능.
+    /// </summary>
+    public void SnapToTarget()
     {
-        yield return null;   // 모든 Start() 완료 대기
+        if (target == null) TryFindPlayer();
+        if (target == null) return;
 
-        if (target == null)
-            TryFindPlayer();
-
-        if (target != null)
-        {
-            transform.position = new Vector3(
-                target.position.x,
-                target.position.y,
-                transform.position.z);
-            velocity = Vector3.zero;
-            Debug.Log($"[CameraFollow] 초기 스냅 → {transform.position}");
-        }
+        transform.position = new Vector3(
+            target.position.x,
+            target.position.y,
+            transform.position.z);
+        velocity = Vector3.zero;
+        Debug.Log($"[CameraFollow] 스냅 → {transform.position}");
     }
 
     void TryFindPlayer()
@@ -86,7 +82,7 @@ public class CameraFollow : MonoBehaviour
         if (p != null)
         {
             target = p.transform;
-            Debug.Log("[CameraFollow] Player 자동 탐색 성공");
+            Debug.Log("[CameraFollow] Player 태그로 탐색 성공");
             return;
         }
         var pc = FindAnyObjectByType<PlayerController>();
@@ -97,14 +93,10 @@ public class CameraFollow : MonoBehaviour
         }
     }
 
-    // ── 매 프레임 카메라 이동 (다른 모든 LateUpdate 이후 실행) ──
+    // ── 매 프레임 카메라 이동 (모든 LateUpdate 이후 실행) ──────
     void LateUpdate()
     {
-        if (target == null)
-        {
-            TryFindPlayer();
-            return;
-        }
+        if (target == null) { TryFindPlayer(); return; }
 
         float tx = target.position.x;
         float ty = target.position.y;
@@ -121,7 +113,7 @@ public class CameraFollow : MonoBehaviour
             return;
         }
 
-        // 일반 추적: 방 경계 안에서만 클램프
+        // 일반 추적 : 방 경계 안에서만 클램프
         float destX = hasBounds ? Mathf.Clamp(tx, minX, maxX) : tx;
         float destY = hasBounds ? Mathf.Clamp(ty, minY, maxY) : ty;
 

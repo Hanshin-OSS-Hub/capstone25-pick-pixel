@@ -230,6 +230,7 @@ MonoBehaviour:
   - {fileID: 754813410}
   - {fileID: 82669545}
   - {fileID: 813320280}
+  verticalRooms:
   - {fileID: 1478647929}
   - {fileID: 169918504}
   minCombatRooms: 2
