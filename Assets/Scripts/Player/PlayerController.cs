@@ -90,6 +90,15 @@ public class PlayerController : MonoBehaviour
         wallSensorL2 = transform.Find("WallSensor_L2").GetComponent<Sensor_HeroKnight>();
     }
 
+    void Start()
+    {
+        var s = PlayerStats.Instance;
+        if (s == null) return;
+        moveSpeed = s.MoveSpeed;
+        jumpForce = s.JumpForce;
+        dashSpeed = s.DashSpeed;
+    }
+
     // ═════════════════════════════════════════════════════════════════════
     void Update()
     {
@@ -130,10 +139,15 @@ public class PlayerController : MonoBehaviour
         anim.SetBool("WallSlide", isWallSliding);
     }
 
+    bool IsAnyPanelOpen =>
+        (NPCPanelUI.Instance != null && NPCPanelUI.Instance.IsOpen) ||
+        (StatUpgradePanelUI.Instance != null && StatUpgradePanelUI.Instance.IsOpen);
+
     // ── 이동 ─────────────────────────────────────────────────────────────
     void UpdateMovement()
     {
         if (isDashing) return;
+        if (IsAnyPanelOpen) return;
 
         float moveX = Input.GetAxisRaw("Horizontal");
         rb.linearVelocity = new Vector2(moveX * moveSpeed, rb.linearVelocity.y);
@@ -155,15 +169,19 @@ public class PlayerController : MonoBehaviour
     // ── 입력 처리 ─────────────────────────────────────────────────────────
     void HandleInput()
     {
+        if (IsAnyPanelOpen) return;
+
         float moveX = Input.GetAxisRaw("Horizontal");
         int facingDir = facingRight ? 1 : -1;
 
-        // Death (E)
+        // NPC / 던전입구 / 강화 상호작용 (E)
         if (Input.GetKeyDown(KeyCode.E))
         {
-            anim.SetBool("noBlood", noBlood);
-            anim.SetTrigger("Death");
-            return;
+            if (Interactable.Current != null)
+            {
+                Interactable.Current.Interact();
+                return;
+            }
         }
 
         // Hurt (Q)
