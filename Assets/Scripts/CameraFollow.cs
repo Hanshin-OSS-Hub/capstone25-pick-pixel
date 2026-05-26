@@ -40,11 +40,15 @@ public class CameraFollow : MonoBehaviour
         }
 
         // ── Pixel Perfect Camera 비활성화 (위치 덮어쓰기 방지) ──
-        var ppc = GetComponent<UnityEngine.U2D.PixelPerfectCamera>();
-        if (ppc != null)
+        // 리플렉션으로 처리해 패키지 미설치 환경에서도 컴파일 오류 없이 동작
+        foreach (var b in GetComponents<Behaviour>())
         {
-            ppc.enabled = false;
-            Debug.Log("[CameraFollow] Pixel Perfect Camera 비활성화 완료");
+            if (b.GetType().Name == "PixelPerfectCamera")
+            {
+                b.enabled = false;
+                Debug.Log("[CameraFollow] Pixel Perfect Camera 비활성화 완료");
+                break;
+            }
         }
 
         // ── target 자동 탐색 ──────────────────────────────────
@@ -85,7 +89,7 @@ public class CameraFollow : MonoBehaviour
             Debug.Log("[CameraFollow] Player 자동 탐색 성공");
             return;
         }
-        var pc = FindFirstObjectByType<PlayerController>();
+        var pc = FindAnyObjectByType<PlayerController>();
         if (pc != null)
         {
             target = pc.transform;

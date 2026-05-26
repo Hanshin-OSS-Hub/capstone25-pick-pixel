@@ -15,7 +15,7 @@ public class SimplePortal : MonoBehaviour
 
     void OnEnable()
     {
-        if (mapManager == null) mapManager = FindObjectOfType<MapManager>();
+        if (mapManager == null) mapManager = FindAnyObjectByType<MapManager>();
         if (portalEffect == null) portalEffect = GetComponentInChildren<ParticleSystem>();
         if (portalEffect != null) portalEffect.Play();
     }

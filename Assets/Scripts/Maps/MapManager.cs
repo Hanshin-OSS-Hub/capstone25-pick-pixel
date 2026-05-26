@@ -52,7 +52,7 @@ public class MapManager : MonoBehaviour
         GameObject playerObj = GameObject.FindWithTag("Player");
         if (playerObj == null)
         {
-            PlayerController pc = FindFirstObjectByType<PlayerController>();
+            PlayerController pc = FindAnyObjectByType<PlayerController>();
             if (pc != null) playerObj = pc.gameObject;
         }
         if (playerObj == null)
@@ -186,7 +186,7 @@ public class MapManager : MonoBehaviour
     private void ResetOutOfRoomMonsters()
     {
         GameObject activeRoom = CurrentRoom;
-        foreach (var monster in FindObjectsByType<MonsterAI>(FindObjectsSortMode.None))
+        foreach (var monster in FindObjectsByType<MonsterAI>())
         {
             // 현재 활성 방의 자식이면 건드리지 않음
             if (activeRoom != null && monster.transform.IsChildOf(activeRoom.transform))
