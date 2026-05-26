@@ -177,6 +177,22 @@ public class MapManager : MonoBehaviour
             if (isBoss) AudioManager.Instance.PlayBossBGM();
             else        AudioManager.Instance.PlayStageBGM();
         }
+
+        // 현재 방 밖에 있는 몬스터(씬 루트 등) → Patrol 리셋
+        ResetOutOfRoomMonsters();
+    }
+
+    // 현재 방의 자식이 아닌 MonsterAI를 모두 Patrol로 되돌림
+    private void ResetOutOfRoomMonsters()
+    {
+        GameObject activeRoom = CurrentRoom;
+        foreach (var monster in FindObjectsByType<MonsterAI>(FindObjectsSortMode.None))
+        {
+            // 현재 활성 방의 자식이면 건드리지 않음
+            if (activeRoom != null && monster.transform.IsChildOf(activeRoom.transform))
+                continue;
+            monster.ResetToPatrol();
+        }
     }
 
     public void GoToNextRoom()

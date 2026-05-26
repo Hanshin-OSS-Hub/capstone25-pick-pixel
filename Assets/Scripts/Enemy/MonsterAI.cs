@@ -37,6 +37,10 @@ public class MonsterAI : MonoBehaviour
     private bool  isAttacking;
     private bool  isDead;
 
+    [Header("방 이탈 제한")]
+    [Tooltip("이 거리 이상 플레이어가 멀어지면(포탈 이동 등) 추적 중단하고 Patrol로 복귀")]
+    public float maxChaseDistance = 30f;
+
     [Header("Flip Control")]
     public float flipCooldown = 0.3f;
     private float lastFlipTime;
@@ -100,6 +104,14 @@ public class MonsterAI : MonoBehaviour
     {
         anim.Play("Walk");
         float dist = DistanceToPlayer();
+
+        // 포탈 이동 등으로 플레이어가 너무 멀어지면 추적 포기
+        if (dist > maxChaseDistance)
+        {
+            ResetToPatrol();
+            return;
+        }
+
         if (dist <= attackRange && Time.time > lastAttackTime + attackCooldown)
         { state = MonsterState.Attack; return; }
 
@@ -115,6 +127,13 @@ public class MonsterAI : MonoBehaviour
             if (dir != moveDir && Time.time > lastFlipTime + flipCooldown) Flip();
         }
         if (dist > detectRange) state = MonsterState.Patrol;
+    }
+
+    // MapManager 또는 외부에서 호출 — 즉시 Patrol 상태로 리셋
+    public void ResetToPatrol()
+    {
+        state = MonsterState.Patrol;
+        if (rb != null) rb.linearVelocity = Vector2.zero;
     }
 
     void Attack()

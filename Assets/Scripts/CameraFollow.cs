@@ -115,22 +115,21 @@ public class CameraFollow : MonoBehaviour
         Vector2 cam2D     = new Vector2(cameraPos.x, cameraPos.y);
         Vector2 target2D  = new Vector2(target.position.x, target.position.y);
 
-        // 방 이동처럼 멀리 떨어지면 즉시 스냅
+        // 포탈 이동 등으로 멀리 떨어졌을 때: 클램프 없이 즉시 스냅
+        // (클램프를 적용하면 방 경계 밖으로 이동한 경우 카메라가 엉뚱한 위치에 고정됨)
         if (Vector2.Distance(cam2D, target2D) > snapDistance)
         {
             smoothVelocity = Vector3.zero;
-            transform.position = new Vector3(
-                Mathf.Clamp(target2D.x, minX, maxX),
-                Mathf.Clamp(target2D.y, minY, maxY),
-                cameraPos.z);
+            transform.position = new Vector3(target2D.x, target2D.y, cameraPos.z);
             return;
         }
 
-        float x = Mathf.SmoothDamp(cameraPos.x, target.position.x, ref smoothVelocity.x, smoothDampTime);
-        float y = Mathf.SmoothDamp(cameraPos.y, target.position.y, ref smoothVelocity.y, smoothDampTime);
+        // 일반 추적: 플레이어가 방 경계 안에 있을 때만 클램프 적용
+        float destX = hasBounds ? Mathf.Clamp(target2D.x, minX, maxX) : target2D.x;
+        float destY = hasBounds ? Mathf.Clamp(target2D.y, minY, maxY) : target2D.y;
 
-        x = Mathf.Clamp(x, minX, maxX);
-        y = Mathf.Clamp(y, minY, maxY);
+        float x = Mathf.SmoothDamp(cameraPos.x, destX, ref smoothVelocity.x, smoothDampTime);
+        float y = Mathf.SmoothDamp(cameraPos.y, destY, ref smoothVelocity.y, smoothDampTime);
 
         transform.position = new Vector3(x, y, cameraPos.z);
     }
