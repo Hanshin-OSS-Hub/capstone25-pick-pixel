@@ -91,7 +91,9 @@ public class MonsterAI : MonoBehaviour
         else
         {
             rb.linearVelocity = new Vector2(moveDir * moveSpeed, rb.linearVelocity.y);
-            if (!IsGroundAhead() && Time.time > lastFlipTime + flipCooldown) Flip();
+            bool shouldFlip = (!IsGroundAhead() || IsWallAhead())
+                              && Time.time > lastFlipTime + flipCooldown;
+            if (shouldFlip) Flip();
         }
         if (DistanceToPlayer() <= detectRange) state = MonsterState.Chase;
     }
@@ -193,6 +195,15 @@ public class MonsterAI : MonoBehaviour
     {
         if (groundCheck == null) return true;
         return Physics2D.Raycast(groundCheck.position, Vector2.down, groundCheckDistance, groundLayer);
+    }
+
+    bool IsWallAhead()
+    {
+        if (bodyCol == null) return false;
+        Vector2 dir      = new Vector2(moveDir, 0f);
+        float   checkDist = bodyCol.bounds.extents.x + 0.15f;
+        // 몬스터 중앙에서 진행 방향으로 레이 발사 (Ground 레이어 벽 감지)
+        return Physics2D.Raycast(bodyCol.bounds.center, dir, checkDist, groundLayer);
     }
 
     void Flip()
