@@ -4,11 +4,12 @@ using UnityEngine.Tilemaps;
 
 public class MapManager : MonoBehaviour
 {
-    [Header("=== 고정 방 ===")]
+    [Header("=== 고정 방 (Scene에서 드래그) ===")]
     [SerializeField] private GameObject startRoom;
+    [SerializeField] private GameObject bossRoom;   // 보스방 — BGM 없음 (추후 설정)
     [SerializeField] private GameObject exitRoom;
 
-    [Header("=== 전투방들 ===")]
+    [Header("=== 전투방들 (Scene에서 드래그) ===")]
     [SerializeField] private GameObject[] combatRooms;
 
     [Header("=== 설정 ===")]
@@ -18,12 +19,21 @@ public class MapManager : MonoBehaviour
     private List<GameObject> currentRunRooms = new List<GameObject>();
     private int currentRoomIndex = 0;
     private int lastCombatIndex  = -1;
+    private int bossRoomIndex    = -1;  // BGM 전환용
 
     public GameObject CurrentRoom      => currentRunRooms.Count > 0 ? currentRunRooms[currentRoomIndex] : null;
     public int        CurrentRoomIndex => currentRoomIndex;
     public int        TotalRooms       => currentRunRooms.Count;
 
-    void Start() { GenerateRunOrder(); ActivateCurrentRoom(); }
+    void Start()
+    {
+        GenerateRunOrder();
+        ActivateCurrentRoom();
+
+        // 스테이지 시작 BGM
+        if (AudioManager.Instance != null)
+            AudioManager.Instance.PlayStageBGM();
+    }
 
     [ContextMenu("Generate Run Order")]
     public void GenerateRunOrder()
@@ -31,16 +41,30 @@ public class MapManager : MonoBehaviour
         currentRunRooms.Clear();
         currentRoomIndex = 0;
         lastCombatIndex  = -1;
+        bossRoomIndex    = -1;
         DeactivateAllRooms();
 
+        // 1. 시작방
         currentRunRooms.Add(startRoom);
+
+        // 2. 전투방 (연속 중복 방지 랜덤)
         int combatCount = Random.Range(minCombatRooms, maxCombatRooms + 1);
         for (int i = 0; i < combatCount; i++)
         {
             int index = SelectWithoutRepeat(combatRooms.Length);
             currentRunRooms.Add(combatRooms[index]);
         }
+
+        // 3. 보스방 (연결된 경우)
+        if (bossRoom != null)
+        {
+            bossRoomIndex = currentRunRooms.Count;
+            currentRunRooms.Add(bossRoom);
+        }
+
+        // 4. 출구
         currentRunRooms.Add(exitRoom);
+
         Debug.Log($"===== 런 생성 완료: 총 {currentRunRooms.Count}개 방 =====");
     }
 
@@ -58,6 +82,7 @@ public class MapManager : MonoBehaviour
     private void DeactivateAllRooms()
     {
         if (startRoom != null) startRoom.SetActive(false);
+        if (bossRoom  != null) bossRoom.SetActive(false);
         if (exitRoom  != null) exitRoom.SetActive(false);
         foreach (var room in combatRooms)
             if (room != null) room.SetActive(false);
@@ -70,28 +95,37 @@ public class MapManager : MonoBehaviour
 
         GameObject room = currentRunRooms[currentRoomIndex];
         if (room == null) return;
+
         room.SetActive(true);
         Debug.Log($"현재 방: {room.name} ({currentRoomIndex + 1}/{currentRunRooms.Count})");
 
-        // 방 안의 모든 Tilemap 유니온 bounds로 카메라 범위 설정
+        // Tilemap 유니온 bounds → 카메라 범위 설정
         var camFollow = Camera.main?.GetComponent<CameraFollow>();
-        if (camFollow == null) return;
-
-        Bounds? unionBounds = null;
-        foreach (var tm in room.GetComponentsInChildren<Tilemap>())
+        if (camFollow != null)
         {
-            tm.CompressBounds();
-            if (tm.cellBounds.size == Vector3Int.zero) continue;
-            Vector3 minW = tm.CellToWorld(tm.cellBounds.min);
-            Vector3 maxW = tm.CellToWorld(tm.cellBounds.max) + tm.layoutGrid.cellSize;
-            Bounds tmBounds = new Bounds();
-            tmBounds.SetMinMax(minW, maxW);
-            if (unionBounds == null) unionBounds = tmBounds;
-            else { Bounds b = unionBounds.Value; b.Encapsulate(tmBounds); unionBounds = b; }
+            Bounds? unionBounds = null;
+            foreach (var tm in room.GetComponentsInChildren<Tilemap>())
+            {
+                tm.CompressBounds();
+                if (tm.cellBounds.size == Vector3Int.zero) continue;
+                Vector3 minW = tm.CellToWorld(tm.cellBounds.min);
+                Vector3 maxW = tm.CellToWorld(tm.cellBounds.max) + tm.layoutGrid.cellSize;
+                Bounds tmBounds = new Bounds();
+                tmBounds.SetMinMax(minW, maxW);
+                if (unionBounds == null) unionBounds = tmBounds;
+                else { Bounds b = unionBounds.Value; b.Encapsulate(tmBounds); unionBounds = b; }
+            }
+            if (unionBounds.HasValue) camFollow.SetRoomBounds(unionBounds.Value);
+            else                      camFollow.ClearBounds();
         }
 
-        if (unionBounds.HasValue) camFollow.SetRoomBounds(unionBounds.Value);
-        else camFollow.ClearBounds();
+        // BGM 전환
+        if (AudioManager.Instance != null)
+        {
+            bool isBoss = (bossRoomIndex >= 0 && currentRoomIndex == bossRoomIndex);
+            if (isBoss) AudioManager.Instance.PlayBossBGM();
+            else        AudioManager.Instance.PlayStageBGM();
+        }
     }
 
     public void GoToNextRoom()
