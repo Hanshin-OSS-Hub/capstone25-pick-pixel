@@ -29,10 +29,51 @@ public class MapManager : MonoBehaviour
     {
         GenerateRunOrder();
         ActivateCurrentRoom();
+        SpawnPlayerInStartRoom();
 
         // 스테이지 시작 BGM
         if (AudioManager.Instance != null)
             AudioManager.Instance.PlayStageBGM();
+    }
+
+    /// <summary>
+    /// 게임 시작 시 플레이어를 startRoom의 Portal_Left 위치로 워프
+    /// Portal_Left가 없으면 startRoom 중심에 배치
+    /// </summary>
+    private void SpawnPlayerInStartRoom()
+    {
+        if (startRoom == null) return;
+
+        GameObject playerObj = GameObject.FindWithTag("Player");
+        if (playerObj == null)
+        {
+            Debug.LogWarning("[MapManager] Player 태그 오브젝트를 찾지 못했습니다.");
+            return;
+        }
+
+        // Portals/Portal_Left 탐색
+        Transform portals     = startRoom.transform.Find("Portals");
+        Transform portalLeft  = portals?.Find("Portal_Left");
+
+        Vector3 spawnPos;
+        if (portalLeft != null)
+        {
+            // Portal_Left 오른쪽으로 약간 offset (포탈 안으로 안 빨려들어가도록)
+            spawnPos = new Vector3(portalLeft.position.x + 3f,
+                                   portalLeft.position.y,
+                                   0f);
+        }
+        else
+        {
+            // Portal_Left 없으면 startRoom 중심에 배치
+            spawnPos = new Vector3(startRoom.transform.position.x,
+                                   startRoom.transform.position.y,
+                                   0f);
+            Debug.LogWarning("[MapManager] startRoom에 Portals/Portal_Left가 없어 중심에 배치합니다.");
+        }
+
+        playerObj.transform.position = spawnPos;
+        Debug.Log($"[MapManager] 플레이어 초기 배치 → {spawnPos}");
     }
 
     [ContextMenu("Generate Run Order")]
