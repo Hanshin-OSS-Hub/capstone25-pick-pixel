@@ -24,6 +24,34 @@ public class CameraFollow : MonoBehaviour
         camHeight = cam.orthographicSize * 2f;
         camWidth  = camHeight * cam.aspect;
         SetNoBounds();
+
+        // Inspector에 target이 연결되지 않은 경우 Player 태그로 자동 탐색
+        if (target == null)
+        {
+            GameObject player = GameObject.FindWithTag("Player");
+            if (player != null)
+            {
+                target = player.transform;
+                Debug.Log("[CameraFollow] Player 자동 탐색 성공");
+            }
+            else
+            {
+                Debug.LogWarning("[CameraFollow] Player 태그 오브젝트를 찾지 못했습니다. Inspector에서 target을 연결해주세요.");
+            }
+        }
+    }
+
+    void Start()
+    {
+        // 시작 시 카메라를 플레이어 위치로 즉시 스냅 (잘못된 위치에서 시작하는 문제 방지)
+        if (target != null)
+        {
+            transform.position = new Vector3(
+                Mathf.Clamp(target.position.x, minX, maxX),
+                Mathf.Clamp(target.position.y, minY, maxY),
+                transform.position.z);
+            smoothVelocity = Vector3.zero;
+        }
     }
 
     // MapManager에서 유니온 Bounds로 호출
