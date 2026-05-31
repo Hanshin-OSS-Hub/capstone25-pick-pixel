@@ -39,6 +39,8 @@ public class MonsterAI : MonoBehaviour
 
     [Header("Flip Control")]
     public float flipCooldown = 0.3f;
+    [Tooltip("스프라이트 아트가 기본적으로 왼쪽을 보고 있으면 true")]
+    public bool  spriteFacesLeft = true;
     private float lastFlipTime;
 
     Rigidbody2D   rb;
@@ -64,6 +66,7 @@ public class MonsterAI : MonoBehaviour
             Debug.LogError($"[MonsterAI] {gameObject.name}: Player를 찾을 수 없습니다!");
         AutoPlaceGroundCheck();
         if (hitCollider != null) hitCollider.SetActive(false);
+        ApplyFacing();   // 시작 시 진행 방향에 맞춰 초기 방향 적용
     }
 
     void OnDestroy()
@@ -210,8 +213,16 @@ public class MonsterAI : MonoBehaviour
     {
         moveDir     *= -1;
         lastFlipTime = Time.time;
+        ApplyFacing();
+    }
+
+    // moveDir과 아트 기본 방향(spriteFacesLeft)에 맞춰 localScale.x 부호 결정
+    void ApplyFacing()
+    {
         Vector3 scale = transform.localScale;
-        scale.x = Mathf.Abs(scale.x) * moveDir;
+        // 아트가 왼쪽을 보면: 오른쪽 이동(moveDir>0)일 때 미러(-), 왼쪽 이동일 때 원본(+)
+        float sign = (spriteFacesLeft ? -1f : 1f) * Mathf.Sign(moveDir);
+        scale.x = Mathf.Abs(scale.x) * sign;
         transform.localScale = scale;
     }
 
