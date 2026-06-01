@@ -205,7 +205,8 @@ public class PlayerController : MonoBehaviour
         anim.SetBool("noBlood", noBlood);
         anim.SetTrigger("Death");
         Debug.Log("[Player] 사망!");
-        // TODO: 게임오버 처리
+        if (GameOverController.Instance != null)
+            GameOverController.Instance.ShowGameOverDelayed(1.2f);
     }
 
     IEnumerator InvincibleRoutine()
