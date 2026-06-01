@@ -312,15 +312,15 @@ MonoBehaviour:
   moveSpeed: 1.5
   dashSpeed: 6
   player: {fileID: 2787955992393328856, guid: 2bcd6591d6f43284ea0ad4ab1d0a05f4, type: 3}
-  detectRange: 3
+  detectRange: 6
   groundCheck: {fileID: 2303001444923178420}
   groundCheckDistance: 0.5
   groundLayer:
     serializedVersion: 2
     m_Bits: 8
-  attackRange: 1.2
-  attackCooldown: 1.5
-  attackDuration: 0.4
+  attackRange: 1.8
+  attackCooldown: 0.6
+  attackDuration: 1
   flipCooldown: 0.4
   hitCollider: {fileID: 5409021842860965954}
 --- !u!95 &7927282187350228368
