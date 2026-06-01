@@ -37,6 +37,9 @@ public class MonsterAI : MonoBehaviour
     private bool  isAttacking;
     private bool  isDead;
 
+    /// <summary>죽었거나 곧 파괴될 몬스터인지 여부 (포탈 잠금 판정 등에서 사용)</summary>
+    public bool IsDead => isDead;
+
     [Header("방 이탈 제한")]
     [Tooltip("이 거리 이상 플레이어가 멀어지면(포탈 이동 등) 추적 중단하고 Patrol로 복귀")]
     public float maxChaseDistance = 30f;

@@ -11,6 +11,10 @@ public class SimplePortal : MonoBehaviour
 
     private MapManager mapManager;
 
+    // 몬스터 처치 여부 폴링 (매 프레임 대신 일정 간격으로 검사)
+    private float nextClearCheckTime;
+    private bool  lastClearedState = true;
+
     public enum PortalDirection { Left, Right }
 
     void OnEnable()
@@ -25,10 +29,36 @@ public class SimplePortal : MonoBehaviour
         if (portalEffect != null) portalEffect.Stop();
     }
 
+    void Update()
+    {
+        // 일정 간격으로 현재 방의 몬스터 처치 여부를 검사해 포탈 이펙트 on/off
+        if (Time.time < nextClearCheckTime) return;
+        nextClearCheckTime = Time.time + 0.25f;
+
+        bool cleared = IsRoomCleared();
+        if (cleared == lastClearedState) return;
+        lastClearedState = cleared;
+
+        // 잠겨 있으면(미처치) 이펙트 정지, 처치 완료되면 이펙트 재생 → 시각적 피드백
+        if (portalEffect != null)
+        {
+            if (cleared) portalEffect.Play();
+            else         portalEffect.Stop();
+        }
+    }
+
     void OnTriggerEnter2D(Collider2D other)
     {
         if (!other.CompareTag("Player")) return;
         if (mapManager == null) { Debug.LogError("[SimplePortal] MapManager 없음!"); return; }
+
+        // 현재 방의 몬스터가 모두 처치되기 전에는 이동 불가
+        if (!IsRoomCleared())
+        {
+            if (showDebugLog)
+                Debug.Log("[SimplePortal] 아직 몬스터가 남아 있어 포탈이 잠겨 있습니다.");
+            return;
+        }
 
         if (direction == PortalDirection.Right)
         { mapManager.GoToNextRoom(); MovePlayerToPortal(other.transform, "Portal_Left",  spawnOffset); }
@@ -80,6 +110,36 @@ public class SimplePortal : MonoBehaviour
 
         player.position = spawnPos;
         if (showDebugLog) Debug.Log($"[SimplePortal] 플레이어 이동 → {spawnPos}");
+    }
+
+    // 현재 방에 살아있는 몬스터가 하나도 없으면 true (보스/전투방 클리어 판정)
+    // 몬스터가 방의 자식이든, 씬 루트에 있든(방 영역 안에 있으면) 모두 검사한다.
+    bool IsRoomCleared()
+    {
+        if (mapManager == null) return true;
+        GameObject room = mapManager.CurrentRoom;
+        if (room == null) return true;
+
+        Bounds? roomBounds = GetRoomBounds(room);
+
+        foreach (var ai in FindObjectsByType<MonsterAI>(FindObjectsInactive.Exclude))
+        {
+            if (ai == null || ai.IsDead) continue;
+
+            // 1) 현재 방의 자식 몬스터
+            if (ai.transform.IsChildOf(room.transform)) return false;
+
+            // 2) 루트에 있어도 현재 방의 Tilemap 영역(XY) 안에 있으면 이 방 소속으로 간주
+            if (roomBounds.HasValue)
+            {
+                Vector3 p = ai.transform.position;
+                Bounds  b = roomBounds.Value;
+                if (p.x >= b.min.x && p.x <= b.max.x &&
+                    p.y >= b.min.y && p.y <= b.max.y)
+                    return false;
+            }
+        }
+        return true;
     }
 
     // 방의 Tilemap 유니온 Bounds 계산

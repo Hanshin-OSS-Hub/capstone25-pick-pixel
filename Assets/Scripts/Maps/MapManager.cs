@@ -168,6 +168,18 @@ public class MapManager : MonoBehaviour
     // ── 방 활성화/비활성화 ────────────────────────────────────────
     private void DeactivateAllRooms()
     {
+        // 방들의 공통 부모(Sections) 아래 "모든" 방을 끈다.
+        // → combatRooms/verticalRooms 에 등록되지 않은 방(여관/상점/보물 등)도 확실히 비활성화하여
+        //   항상 켜진 채 화면에 남는 문제를 방지한다.
+        Transform parent = startRoom != null ? startRoom.transform.parent : null;
+        if (parent != null)
+        {
+            foreach (Transform child in parent)
+                child.gameObject.SetActive(false);
+            return;
+        }
+
+        // 폴백: 부모를 찾지 못하면 등록된 방만 비활성화
         if (startRoom != null) startRoom.SetActive(false);
         if (bossRoom  != null) bossRoom.SetActive(false);
         if (exitRoom  != null) exitRoom.SetActive(false);
