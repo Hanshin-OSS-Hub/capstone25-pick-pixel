@@ -8,7 +8,7 @@ public class MainMenuController : MonoBehaviour
     public GameObject saveSelectPanel;
     public GameObject settingsPanel;
 
-    // ===== ¸ŞÀÎ ¸Ş´º =====
+    // ===== ï¿½ï¿½ï¿½ï¿½ ï¿½Ş´ï¿½ =====
     public void OnStartButton()
     {
         mainMenuPanel.SetActive(false);
@@ -30,7 +30,7 @@ public class MainMenuController : MonoBehaviour
 #endif
     }
 
-    // ===== °ø¿ë Back =====
+    // ===== ï¿½ï¿½ï¿½ï¿½ Back =====
     public void OnBackToMain()
     {
         saveSelectPanel.SetActive(false);
@@ -38,12 +38,12 @@ public class MainMenuController : MonoBehaviour
         mainMenuPanel.SetActive(true);
     }
 
-    // ===== ¼¼ÀÌºê ½½·Ô ¼±ÅÃ =====
+    // ===== ï¿½ï¿½ï¿½Ìºï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ =====
     public void OnSelectSaveSlot(int slotIndex)
     {
-        // Å×½ºÆ®: ¼±ÅÃÇÑ ½½·ÔÀ» ÀúÀåÇØµÎ°í Stage1·Î ÀÌµ¿
+        // ì„ íƒí•œ ì„¸ì´ë¸Œ ìŠ¬ë¡¯ì„ ì €ì¥í•˜ê³  ë¡œë¹„(Lobby_V2)ë¡œ ì´ë™
         PlayerPrefs.SetInt("SelectedSaveSlot", slotIndex);
         PlayerPrefs.Save();
-        SceneManager.LoadScene("Stage1");
+        SceneManager.LoadScene("Lobby_V2");
     }
 }

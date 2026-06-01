@@ -2,41 +2,33 @@ using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
 
-/// <summary>
-/// Ã¼·Â¹Ù UI ÄÁÆ®·Ñ·¯
-/// - Bar_FillÀÇ Image (Fill ¹æ½Ä) fillAmount·Î ¾×Ã¼ ÁÙÀÌ±â
-/// - ºñÀ²¿¡ µû¶ó »ö»ó ÀÚµ¿ º¯È¯
-/// - PlayerController.TakeDamage() / Heal()¿¡¼­ È£Ãâ
-/// </summary>
 public class HealthBar : MonoBehaviour
 {
-    [Header("UI ¿¬°á")]
-    public Image barFill;            // Bar_FillÀÇ Image ÄÄÆ÷³ÍÆ®
-    public TextMeshProUGUI hpText;   // HP ÅØ½ºÆ® (¼±ÅÃ)
+    [Header("UI ì—°ê²°")]
+    public Image barFill;
+    public TextMeshProUGUI hpText;
 
-    [Header("HP ¼³Á¤")]
+    [Header("HP ì„¤ì •")]
     public float maxHp = 100f;
 
-    [Header("»ö»ó ±¸°£")]
-    public Color colorFull = Color.white;                        // 50% ÀÌ»ó
-    public Color colorMid = new Color(1f, 0.6f, 0f);           // 25~50%
-    public Color colorLow = new Color(1f, 0.1f, 0.2f);         // 25% ÀÌÇÏ
+    [Header("ìƒ‰ìƒ êµ¬ê°„")]
+    public Color colorFull = Color.white;
+    public Color colorMid  = new Color(1f, 0.6f, 0f);
+    public Color colorLow  = new Color(1f, 0.1f, 0.2f);
 
-    [Header("½º¹«½º ÀÌµ¿")]
-    public float smoothSpeed = 5f;   // Ã¼·Â¹Ù°¡ ÁÙ¾îµå´Â ¼Óµµ (0ÀÌ¸é Áï½Ã)
+    [Header("ìŠ¤ë¬´ìŠ¤ ì´ë™")]
+    public float smoothSpeed = 5f;
 
     private float currentHp;
-    private float targetRatio = 1f;  // ¸ñÇ¥ ºñÀ² (½º¹«½º¿ë)
+    private float targetRatio = 1f;
 
-    // ¿ÜºÎ ÀÐ±â¿ë
     public float CurrentHp => currentHp;
-    public float MaxHp => maxHp;
-    public bool IsDead => currentHp <= 0f;
+    public float MaxHp     => maxHp;
+    public bool  IsDead    => currentHp <= 0f;
 
-    // ¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡
     void Start()
     {
-        currentHp = maxHp;
+        currentHp   = maxHp;
         targetRatio = 1f;
         if (barFill != null) barFill.fillAmount = 1f;
         RefreshText();
@@ -44,32 +36,26 @@ public class HealthBar : MonoBehaviour
 
     void Update()
     {
-        // ½º¹«½ºÇÏ°Ô fillAmount ÀÌµ¿
         if (barFill == null) return;
         barFill.fillAmount = Mathf.MoveTowards(
             barFill.fillAmount, targetRatio, smoothSpeed * Time.deltaTime);
         UpdateColor(barFill.fillAmount);
     }
 
-    // ¦¡¦¡¦¡ ¿ÜºÎ¿¡¼­ È£Ãâ ¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡
-
-    /// <summary>µ¥¹ÌÁö Àû¿ë. 0 ÀÌÇÏ¸é »ç¸Á.</summary>
     public void TakeDamage(float amount)
     {
-        currentHp = Mathf.Max(0f, currentHp - amount);
+        currentHp   = Mathf.Max(0f, currentHp - amount);
         targetRatio = currentHp / maxHp;
         RefreshText();
     }
 
-    /// <summary>È¸º¹ Àû¿ë.</summary>
     public void Heal(float amount)
     {
-        currentHp = Mathf.Min(maxHp, currentHp + amount);
+        currentHp   = Mathf.Min(maxHp, currentHp + amount);
         targetRatio = currentHp / maxHp;
         RefreshText();
     }
 
-    /// <summary>ÃÖ´ë HP Àç¼³Á¤ (»õ ½ºÅ×ÀÌÁö ½ÃÀÛ µî).</summary>
     public void SetMaxHp(float newMax, bool refillHp = true)
     {
         maxHp = newMax;
@@ -78,22 +64,19 @@ public class HealthBar : MonoBehaviour
         RefreshText();
     }
 
-    /// <summary>ÇöÀç HP¸¦ Á÷Á¢ ¼³Á¤ (¼¼ÀÌºê ·Îµå µî).</summary>
     public void SetCurrentHp(float hp)
     {
-        currentHp = Mathf.Clamp(hp, 0f, maxHp);
+        currentHp   = Mathf.Clamp(hp, 0f, maxHp);
         targetRatio = currentHp / maxHp;
         RefreshText();
     }
 
-    // ¦¡¦¡¦¡ ³»ºÎ °»½Å ¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡¦¡
-
     void UpdateColor(float ratio)
     {
         if (barFill == null) return;
-        if (ratio > 0.5f) barFill.color = colorFull;
+        if      (ratio > 0.5f)  barFill.color = colorFull;
         else if (ratio > 0.25f) barFill.color = colorMid;
-        else barFill.color = colorLow;
+        else                    barFill.color = colorLow;
     }
 
     void RefreshText()
