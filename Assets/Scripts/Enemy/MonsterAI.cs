@@ -56,6 +56,9 @@ public class MonsterAI : MonoBehaviour
 
     [Header("Hit Collider")]
     public GameObject hitCollider;
+    private Collider2D hitCol;       // 공격 히트박스 콜라이더 (공격 모션 중에만 활성)
+    private Collider2D playerCol;    // 플레이어 콜라이더 (겹침 판정용)
+    private bool       dealtThisSwing;
 
     void Awake()
     {
@@ -63,6 +66,7 @@ public class MonsterAI : MonoBehaviour
         bodyCol = GetComponent<BoxCollider2D>();
         anim    = GetComponent<Animator>();
         if (isFlying) rb.gravityScale = 0;
+        if (hitCollider != null) hitCol = hitCollider.GetComponent<Collider2D>();
     }
 
     void Start()
@@ -71,6 +75,7 @@ public class MonsterAI : MonoBehaviour
             player = GameObject.FindWithTag("Player")?.transform;
         if (player == null)
             Debug.LogError($"[MonsterAI] {gameObject.name}: Player를 찾을 수 없습니다!");
+        if (player != null) playerCol = player.GetComponent<Collider2D>();
         AutoPlaceGroundCheck();
         if (hitCollider != null) hitCollider.SetActive(false);
         ApplyFacing();   // 시작 시 진행 방향에 맞춰 초기 방향 적용
@@ -157,18 +162,40 @@ public class MonsterAI : MonoBehaviour
 
     IEnumerator EndAttackRoutine()
     {
-        yield return new WaitForSeconds(attackDuration);
+        // 공격 모션이 지속되는 동안 히트박스가 실제로 플레이어와 겹칠 때만 1회 데미지.
+        // (단순히 공격 상태 진입만으로 데미지를 주던 기존 방식 → 허공 공격/몸통 접촉 데미지 방지)
+        dealtThisSwing = false;
+        float t = 0f;
+        while (t < attackDuration)
+        {
+            if (!dealtThisSwing && PlayerInHitbox())
+            {
+                DealDamageToPlayer();
+                dealtThisSwing = true;
+            }
+            t += Time.deltaTime;
+            yield return null;
+        }
         if (hitCollider != null) hitCollider.SetActive(false);
         isAttacking    = false;
         lastAttackTime = Time.time;
         state          = MonsterState.Chase;
     }
 
+    // 활성화된 공격 히트박스가 플레이어 콜라이더와 겹치는지 검사
+    bool PlayerInHitbox()
+    {
+        if (hitCol == null && hitCollider != null) hitCol = hitCollider.GetComponent<Collider2D>();
+        if (hitCol == null || !hitCol.isActiveAndEnabled) return false;
+        if (playerCol == null && player != null) playerCol = player.GetComponent<Collider2D>();
+        if (playerCol == null) return false;
+        return hitCol.bounds.Intersects(playerCol.bounds);
+    }
+
     void MeleeAttack()
     {
         anim.Play("Attack");
         if (hitCollider != null) hitCollider.SetActive(true);
-        DealDamageToPlayer();
     }
 
     void RangedAttack()
@@ -184,7 +211,6 @@ public class MonsterAI : MonoBehaviour
         rb.linearVelocity = dir * dashSpeed;
         StartCoroutine(StopDashRoutine());
         if (hitCollider != null) hitCollider.SetActive(true);
-        DealDamageToPlayer();
     }
 
     IEnumerator StopDashRoutine()
@@ -219,7 +245,11 @@ public class MonsterAI : MonoBehaviour
     bool IsGroundAhead()
     {
         if (groundCheck == null) return true;
-        return Physics2D.Raycast(groundCheck.position, Vector2.down, groundCheckDistance, groundLayer);
+        // 발 바로 아래가 아니라 "진행 방향 앞쪽" 지면을 검사해야 플랫폼 끝에서
+        // 허공으로 걸어 나가지 않고 미리 돌아선다. (몸통 절반 너비만큼 앞쪽으로 이동)
+        float aheadX = (bodyCol != null ? bodyCol.bounds.extents.x + 0.1f : 0.3f) * moveDir;
+        Vector2 origin = (Vector2)groundCheck.position + new Vector2(aheadX, 0f);
+        return Physics2D.Raycast(origin, Vector2.down, groundCheckDistance, groundLayer);
     }
 
     bool IsWallAhead()
