@@ -36,6 +36,15 @@ public class MonsterHit : MonoBehaviour
         if (healthBar != null)
             healthBar.SetFill((float)hp / maxHp);
 
+        // 보스 분기 (BossAI 가 있으면 보스 처리, 일반 몬스터엔 영향 없음)
+        var boss = GetComponentInParent<BossAI>();
+        if (boss != null)
+        {
+            if (hp <= 0) boss.Die();
+            else boss.PlayHit();
+            return;
+        }
+
         if (hp <= 0)
         {
             var ai = GetComponentInParent<MonsterAI>();
