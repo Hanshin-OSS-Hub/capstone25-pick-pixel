@@ -205,6 +205,11 @@ public class MapManager : MonoBehaviour
             Bounds? unionBounds = null;
             foreach (var tm in room.GetComponentsInChildren<Tilemap>())
             {
+                // 카메라 경계는 "밟는 지형"(콜라이더가 있는 솔리드 타일맵)만 기준으로 한다.
+                // DecorationTilemap 처럼 TilemapCollider2D 가 없는 장식 레이어는 무시 →
+                // 장식을 맵 밖까지 칠해도 카메라가 그만큼 더 벗어나지 않는다.
+                if (tm.GetComponent<TilemapCollider2D>() == null) continue;
+
                 tm.CompressBounds();
                 if (tm.cellBounds.size == Vector3Int.zero) continue;
                 Vector3 minW = tm.CellToWorld(tm.cellBounds.min);
