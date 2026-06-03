@@ -15,8 +15,8 @@ using UnityEngine.SceneManagement;
 public class DeathZone : MonoBehaviour
 {
     [Header("=== 씬 재로드 설정 ===")]
-    [Tooltip("true: 사망 후 씬을 다시 로드 (새 런 시작)\nfalse: 다른 스크립트에서 처리")]
-    [SerializeField] private bool reloadScene = true;
+    [Tooltip("true: 사망 후 씬을 다시 로드 (새 런 시작)\nfalse: GameOverController 가 패널을 띄워 처리")]
+    [SerializeField] private bool reloadScene = false;
 
     [Tooltip("사망 애니메이션이 끝난 뒤 씬을 재로드할 때까지 기다리는 시간(초)")]
     [SerializeField] private float respawnDelay = 1.8f;
@@ -42,7 +42,8 @@ public class DeathZone : MonoBehaviour
         pc.Die();
         Debug.Log($"[DeathZone] '{gameObject.name}' 구역 낙사 → 플레이어 사망");
 
-        if (reloadScene)
+        // GameOverController 가 패널을 띄우는 경우 씬 재로드는 생략(중복 처리 방지)
+        if (reloadScene && GameOverController.Instance == null)
             StartCoroutine(ReloadAfterDelay());
     }
 

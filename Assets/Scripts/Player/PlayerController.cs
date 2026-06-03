@@ -213,7 +213,8 @@ public class PlayerController : MonoBehaviour
         anim.SetTrigger("Death");
 
         Debug.Log("[Player] 사망!");
-        // TODO: 게임오버 처리
+        if (GameOverController.Instance != null)
+            GameOverController.Instance.ShowGameOverDelayed(1.2f);
     }
 
     // ── 무적 코루틴 (정인규) ──────────────────────────────────────────────
