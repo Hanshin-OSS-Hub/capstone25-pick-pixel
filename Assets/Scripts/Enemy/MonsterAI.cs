@@ -105,6 +105,8 @@ public class MonsterAI : MonoBehaviour
     {
         anim.Play("Walk");
         float dist = DistanceToPlayer();
+
+        // 공격 사거리 진입 + 쿨다운 완료 → 공격
         if (dist <= attackRange && Time.time > lastAttackTime + attackCooldown)
         { state = MonsterState.Attack; return; }
 
@@ -119,7 +121,10 @@ public class MonsterAI : MonoBehaviour
             rb.linearVelocity = new Vector2(dir * moveSpeed, rb.linearVelocity.y);
             if (dir != moveDir && Time.time > lastFlipTime + flipCooldown) Flip();
         }
-        if (dist > detectRange) state = MonsterState.Patrol;
+
+        // Patrol 복귀는 detectRange × 1.5 이상 멀어져야 (히스테리시스)
+        // → 경계선에서 Chase/Patrol 오락가락 방지
+        if (dist > detectRange * 1.5f) state = MonsterState.Patrol;
     }
 
     void Attack()

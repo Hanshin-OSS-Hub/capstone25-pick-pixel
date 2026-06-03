@@ -241,7 +241,9 @@ public class PlayerController : MonoBehaviour
                        + new Vector2(dir * attackHitOffset, 1.2f);
         Vector2 size   = new Vector2(attackHitWidth, attackHitHeight);
 
-        Collider2D[]        cols    = Physics2D.OverlapBoxAll(center, size, 0f);
+        // Monster 레이어만 탐색 (Ground·Player 등 불필요 충돌 제외)
+        int monsterMask = LayerMask.GetMask("Monster");
+        Collider2D[]        cols    = Physics2D.OverlapBoxAll(center, size, 0f, monsterMask);
         HashSet<MonsterHit> damaged = new HashSet<MonsterHit>();
         foreach (var col in cols)
         {
