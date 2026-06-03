@@ -137,6 +137,7 @@ GameObject:
   - component: {fileID: 7609540637151532635}
   - component: {fileID: 1651085451761591095}
   - component: {fileID: 7927282187350228368}
+  - component: {fileID: 9123456789012345678}
   m_Layer: 6
   m_Name: Monster_Oni
   m_TagString: Monster
@@ -280,7 +281,7 @@ BoxCollider2D:
   m_UsedByEffector: 0
   m_CompositeOperation: 0
   m_CompositeOrder: 0
-  m_Offset: {x: 0, y: 1.3}
+  m_Offset: {x: 0, y: 0}
   m_SpriteTilingProperty:
     border: {x: 0, y: 0, z: 0, w: 0}
     pivot: {x: 0.5, y: 0.5}
@@ -311,17 +312,17 @@ MonoBehaviour:
   moveSpeed: 1.5
   dashSpeed: 6
   player: {fileID: 2787955992393328856, guid: 2bcd6591d6f43284ea0ad4ab1d0a05f4, type: 3}
-  detectRange: 3
+  detectRange: 6
   groundCheck: {fileID: 2303001444923178420}
   groundCheckDistance: 0.5
   groundLayer:
     serializedVersion: 2
     m_Bits: 8
-  attackRange: 1.2
-  attackCooldown: 1.5
-  attackDuration: 0.4
+  attackRange: 1.8
+  attackCooldown: 0.6
+  attackDuration: 1
   flipCooldown: 0.4
-  hitCollider: {fileID: 0}
+  hitCollider: {fileID: 5409021842860965954}
 --- !u!95 &7927282187350228368
 Animator:
   serializedVersion: 7
@@ -344,3 +345,16 @@ Animator:
   m_AllowConstantClipSamplingOptimization: 1
   m_KeepAnimatorStateOnDisable: 0
   m_WriteDefaultValuesOnDisable: 0
+--- !u!114 &9123456789012345678
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6456738967649227321}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: dc2c3df8c404f354989e436eb3a37ad0, type: 3}
+  m_Name:
+  m_EditorClassIdentifier: Assembly-CSharp::MonsterHealthBar
+  yOffset: 1.7

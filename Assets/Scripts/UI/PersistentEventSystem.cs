@@ -32,7 +32,7 @@ public class PersistentEventSystem : MonoBehaviour
     void Reconcile()
     {
         bool otherActive = false;
-        var all = FindObjectsOfType<EventSystem>(includeInactive: false);
+        var all = FindObjectsByType<EventSystem>(FindObjectsInactive.Exclude);
         for (int i = 0; i < all.Length; i++)
         {
             if (all[i] != _self) { otherActive = true; break; }

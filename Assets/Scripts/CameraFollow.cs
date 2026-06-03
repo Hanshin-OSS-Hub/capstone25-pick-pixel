@@ -1,102 +1,167 @@
 using UnityEngine;
 using UnityEngine.Tilemaps;
 
+/// <summary>
+/// 플레이어를 따라가는 2D 카메라 컨트롤러
+/// [DefaultExecutionOrder(1000)] 로 모든 다른 스크립트의 Awake/Start/LateUpdate 이후 실행
+/// → MapManager.Start() 가 플레이어를 이미 배치한 뒤 CameraFollow.Start() 가 호출되므로
+///    코루틴(yield return null) 없이 즉시 스냅 가능
+/// </summary>
+[DefaultExecutionOrder(1000)]
 public class CameraFollow : MonoBehaviour
 {
-    [Header("Follow Target")]
+    [Header("추적 대상")]
     public Transform target;
 
-    [Header("Tilemap (World Bounds)")]
-    public Tilemap tilemap;
+    [Header("이동 설정")]
+    public float smoothTime   = 0.15f;
+    public float snapDistance = 8f;   // 이 거리 이상이면 즉시 스냅
 
-    [Header("Camera Settings")]
-    public float smoothDampTime = 0.15f;
-    public Vector2 deadZoneSize = new Vector2(4f, 2.5f);  // Deadzone (���� �������� �ʴ� ����)
+    [Header("디버그")]
+    public bool showGizmos = true;
 
-    [Header("Room Settings (Optional)")]
-    public bool useRoomMode = false;
-    public Vector2 roomSize = new Vector2(16f, 9f); // �� ũ��
-    private Vector2 currentRoomCenter;
+    // ─── 내부 상태 ─────────────────────────────────────────────
+    private Vector3 velocity = Vector3.zero;
+    private float   camW, camH;
 
-    private Vector3 smoothVelocity = Vector3.zero;
+    private float minX = float.MinValue, maxX = float.MaxValue;
+    private float minY = float.MinValue, maxY = float.MaxValue;
+    private bool  hasBounds = false;
 
-    private float camWidth;
-    private float camHeight;
-    private float minX, maxX, minY, maxY;
+    // ═══════════════════════════════════════════════════════════
+    void Awake()
+    {
+        Camera cam = GetComponent<Camera>();
+        if (cam != null)
+        {
+            camH = cam.orthographicSize * 2f;
+            camW = camH * cam.aspect;
+        }
+
+        // ── Pixel Perfect Camera 비활성화 (위치 덮어쓰기 방지) ──
+        foreach (var b in GetComponents<Behaviour>())
+        {
+            if (b.GetType().Name == "PixelPerfectCamera")
+            {
+                b.enabled = false;
+                Debug.Log("[CameraFollow] Pixel Perfect Camera 비활성화 완료");
+                break;
+            }
+        }
+
+        if (target == null) TryFindPlayer();
+    }
 
     void Start()
     {
-        // ==== ī�޶� ũ�� ��� ====
-        Camera cam = Camera.main;
-        camHeight = cam.orthographicSize * 2;
-        camWidth = camHeight * cam.aspect;
+        // [DefaultExecutionOrder(1000)] 로 인해 MapManager.Start() 가 먼저 실행됨
+        // → 플레이어가 이미 startRoom 에 배치된 상태이므로 코루틴 없이 즉시 스냅
+        if (target == null) TryFindPlayer();
+        SnapToTarget();
+    }
 
-        // ==== Ÿ�ϸ� ��� ���� ====
-        tilemap.CompressBounds();
-        BoundsInt bounds = tilemap.cellBounds;
+    /// <summary>
+    /// 카메라를 target 위치로 즉시 스냅. MapManager에서 플레이어 이동 후 호출 가능.
+    /// </summary>
+    public void SnapToTarget()
+    {
+        if (target == null) TryFindPlayer();
+        if (target == null) return;
 
-        Vector3 minWorld = tilemap.CellToWorld(bounds.min);
-        Vector3 maxWorld = tilemap.CellToWorld(bounds.max) + tilemap.layoutGrid.cellSize;
+        transform.position = new Vector3(
+            target.position.x,
+            target.position.y,
+            transform.position.z);
+        velocity = Vector3.zero;
+        Debug.Log($"[CameraFollow] 스냅 → {transform.position}");
+    }
 
-        // ==== Clamp ��� ====
-        minX = minWorld.x + camWidth / 2f;
-        maxX = maxWorld.x - camWidth / 2f;
-
-        minY = minWorld.y + camHeight / 2f;
-        maxY = maxWorld.y - camHeight / 2f;
-
-        if (useRoomMode)
+    void TryFindPlayer()
+    {
+        GameObject p = GameObject.FindWithTag("Player");
+        if (p != null)
         {
-            currentRoomCenter = GetRoomCenter(target.position);
+            target = p.transform;
+            Debug.Log("[CameraFollow] Player 태그로 탐색 성공");
+            return;
+        }
+        var pc = FindAnyObjectByType<PlayerController>();
+        if (pc != null)
+        {
+            target = pc.transform;
+            Debug.Log("[CameraFollow] PlayerController 로 탐색 성공");
         }
     }
 
+    // ── 매 프레임 카메라 이동 (모든 LateUpdate 이후 실행) ──────
     void LateUpdate()
     {
-        if (!target) return;
+        if (target == null) { TryFindPlayer(); return; }
 
-        Vector3 cameraPos = transform.position;
+        float tx = target.position.x;
+        float ty = target.position.y;
+        float cx = transform.position.x;
+        float cy = transform.position.y;
 
-        // ================ DEATHZONE ��� ================
-        Vector2 deadMin = new Vector2(cameraPos.x - deadZoneSize.x / 2f, cameraPos.y - deadZoneSize.y / 2f);
-        Vector2 deadMax = new Vector2(cameraPos.x + deadZoneSize.x / 2f, cameraPos.y + deadZoneSize.y / 2f);
+        float dist = Vector2.Distance(new Vector2(cx, cy), new Vector2(tx, ty));
 
-        Vector3 targetPos = cameraPos;
-
-        if (target.position.x < deadMin.x) targetPos.x = target.position.x;
-        if (target.position.x > deadMax.x) targetPos.x = target.position.x;
-        if (target.position.y < deadMin.y) targetPos.y = target.position.y;
-        if (target.position.y > deadMax.y) targetPos.y = target.position.y;
-
-        // ================================================
-        // ROOM MODE (���׸���� �� ��ȯ)
-        // ================================================
-        if (useRoomMode)
+        // 포탈 이동 등 → 클램프 없이 즉시 스냅
+        if (dist > snapDistance)
         {
-            Vector2 roomCenter = GetRoomCenter(target.position);
-
-            if (roomCenter != currentRoomCenter)
-                currentRoomCenter = Vector2.Lerp(currentRoomCenter, roomCenter, 0.12f);
-
-            targetPos = new Vector3(currentRoomCenter.x, currentRoomCenter.y, cameraPos.z);
+            transform.position = new Vector3(tx, ty, transform.position.z);
+            velocity = Vector3.zero;
+            return;
         }
 
-        // ================ �ε巯�� ���󰡱� ================
-        float x = Mathf.SmoothDamp(cameraPos.x, targetPos.x, ref smoothVelocity.x, smoothDampTime);
-        float y = Mathf.SmoothDamp(cameraPos.y, targetPos.y, ref smoothVelocity.y, smoothDampTime);
+        // 일반 추적 : 방 경계 안에서만 클램프
+        float destX = hasBounds ? Mathf.Clamp(tx, minX, maxX) : tx;
+        float destY = hasBounds ? Mathf.Clamp(ty, minY, maxY) : ty;
 
-        // ================ Clamp (Ÿ�� ���) ================
-        x = Mathf.Clamp(x, minX, maxX);
-        y = Mathf.Clamp(y, minY, maxY);
+        float x = Mathf.SmoothDamp(cx, destX, ref velocity.x, smoothTime);
+        float y = Mathf.SmoothDamp(cy, destY, ref velocity.y, smoothTime);
 
-        transform.position = new Vector3(x, y, cameraPos.z);
+        transform.position = new Vector3(x, y, transform.position.z);
     }
 
-    // ���� �߽� ��ǥ ���ϱ�
-    Vector2 GetRoomCenter(Vector2 pos)
+    // ── MapManager 에서 호출하는 Bounds 설정 ─────────────────
+    public void SetRoomBounds(Bounds worldBounds)
     {
-        float roomX = Mathf.Floor(pos.x / roomSize.x) * roomSize.x + roomSize.x / 2f;
-        float roomY = Mathf.Floor(pos.y / roomSize.y) * roomSize.y + roomSize.y / 2f;
-        return new Vector2(roomX, roomY);
+        minX = worldBounds.min.x + camW / 2f;
+        maxX = worldBounds.max.x - camW / 2f;
+        minY = worldBounds.min.y + camH / 2f;
+        maxY = worldBounds.max.y - camH / 2f;
+
+        if (minX > maxX) { minX = float.MinValue; maxX = float.MaxValue; }
+        if (minY > maxY) { minY = float.MinValue; maxY = float.MaxValue; }
+
+        hasBounds = true;
+        Debug.Log($"[CameraFollow] Bounds 설정 X({minX:F1}~{maxX:F1}) Y({minY:F1}~{maxY:F1})");
+    }
+
+    public void SetRoomBounds(Tilemap tilemap)
+    {
+        if (tilemap == null) { ClearBounds(); return; }
+        tilemap.CompressBounds();
+        BoundsInt bi = tilemap.cellBounds;
+        var b = new Bounds();
+        b.SetMinMax(tilemap.CellToWorld(bi.min),
+                    tilemap.CellToWorld(bi.max) + tilemap.layoutGrid.cellSize);
+        SetRoomBounds(b);
+    }
+
+    public void ClearBounds()
+    {
+        minX = float.MinValue; maxX = float.MaxValue;
+        minY = float.MinValue; maxY = float.MaxValue;
+        hasBounds = false;
+    }
+
+    void OnDrawGizmos()
+    {
+        if (!showGizmos || !hasBounds) return;
+        Gizmos.color = new Color(0f, 1f, 0f, 0.4f);
+        Gizmos.DrawWireCube(
+            new Vector3((minX + maxX) / 2f, (minY + maxY) / 2f, 0f),
+            new Vector3(maxX - minX, maxY - minY, 0f));
     }
 }
