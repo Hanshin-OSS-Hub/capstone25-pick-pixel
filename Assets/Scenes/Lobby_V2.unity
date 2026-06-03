@@ -11587,7 +11587,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::StatUpgradeStation
   interactKey: 101
-  upgradePanel: {fileID: 0}
+  upgradePanel: {fileID: 1531690413}
   promptUI: {fileID: 319170295}
   highlightObject: {fileID: 1636249868}
 --- !u!1 &2057379055

@@ -14,10 +14,13 @@ public class StatUpgradeStation : MonoBehaviour
     void Awake()
     {
         GetComponent<Collider2D>().isTrigger = true;
+        ResolveUpgradePanel();
         SetInteractionVisual(false);
 
         if (upgradePanel != null)
             upgradePanel.SetActive(false);
+        else
+            Debug.LogWarning("[StatUpgradeStation] upgradePanel reference is missing.", this);
     }
 
     void Update()
@@ -26,6 +29,8 @@ public class StatUpgradeStation : MonoBehaviour
 
         if (upgradePanel != null)
             upgradePanel.SetActive(!upgradePanel.activeSelf);
+        else
+            Debug.LogWarning("[StatUpgradeStation] Cannot open stat upgrade UI because upgradePanel is missing.", this);
     }
 
     void OnTriggerEnter2D(Collider2D other)
@@ -49,5 +54,20 @@ public class StatUpgradeStation : MonoBehaviour
     {
         if (promptUI != null) promptUI.SetActive(active);
         if (highlightObject != null) highlightObject.SetActive(active);
+    }
+
+    void ResolveUpgradePanel()
+    {
+        if (upgradePanel != null) return;
+
+        var terminals = Resources.FindObjectsOfTypeAll<StatUpgradeTerminalUI>();
+        for (int i = 0; i < terminals.Length; i++)
+        {
+            GameObject terminal = terminals[i].gameObject;
+            if (!terminal.scene.IsValid()) continue;
+
+            upgradePanel = terminal;
+            return;
+        }
     }
 }
