@@ -60,6 +60,14 @@ public class MonsterAI : MonoBehaviour
     private Collider2D playerCol;    // 플레이어 콜라이더 (겹침 판정용)
     private bool       dealtThisSwing;
 
+    [Header("Ranged Attack (isRanged=true 일 때)")]
+    [Tooltip("BossProjectile 컴포넌트가 부착된 투사체 프리팹")]
+    public GameObject projectilePrefab;
+    [Tooltip("발사 위치 (null이면 몸통 중심 + firePointOffset 사용)")]
+    public Transform firePoint;
+    [Tooltip("firePoint가 null일 때 몸통 중심으로부터의 발사 오프셋 (x는 진행방향으로 자동 반전)")]
+    public Vector2 firePointOffset = new Vector2(0.5f, 0.1f);
+
     void Awake()
     {
         rb      = GetComponent<Rigidbody2D>();
@@ -201,7 +209,15 @@ public class MonsterAI : MonoBehaviour
     void RangedAttack()
     {
         anim.Play("Attack");
-        // TODO: Projectile 생성
+        if (projectilePrefab == null || player == null || bodyCol == null) return;
+        float dirX = Mathf.Sign(player.position.x - bodyCol.bounds.center.x);
+        if (dirX == 0f) dirX = moveDir;
+        Vector3 spawn = firePoint != null
+            ? firePoint.position
+            : bodyCol.bounds.center + new Vector3(dirX * firePointOffset.x, firePointOffset.y, 0f);
+        var go = Instantiate(projectilePrefab, spawn, Quaternion.identity);
+        var pj = go.GetComponent<BossProjectile>();
+        if (pj != null) pj.Launch(new Vector2(dirX, 0f), attackDamage);
     }
 
     void DashAttack()
