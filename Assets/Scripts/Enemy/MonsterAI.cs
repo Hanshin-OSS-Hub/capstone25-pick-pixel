@@ -20,7 +20,8 @@ public class MonsterAI : MonoBehaviour
 
     [Header("Detect Player")]
     public Transform player;
-    public float detectRange = 5f;
+    [Tooltip("플레이어 인식 반경 (가로·세로 구분 없이 이 거리 안에 들어오면 추적 시작)")]
+    public float detectRange = 6f;
 
     [Header("Ground Check")]
     public Transform groundCheck;
@@ -28,7 +29,10 @@ public class MonsterAI : MonoBehaviour
     public LayerMask groundLayer;
 
     [Header("Attack")]
+    [Tooltip("공격 발동 가로 거리 (이 안에 들어오면 공격)")]
     public float attackRange    = 1.2f;
+    [Tooltip("공격이 닿는 세로 허용 범위")]
+    public float attackVerticalRange = 2.5f;
     public float attackCooldown = 1.5f;
     public float attackDuration = 0.4f;
     public int   attackDamage   = 10;
@@ -56,8 +60,6 @@ public class MonsterAI : MonoBehaviour
 
     [Header("Hit Collider")]
     public GameObject hitCollider;
-    private Collider2D hitCol;       // 공격 히트박스 콜라이더 (공격 모션 중에만 활성)
-    private Collider2D playerCol;    // 플레이어 콜라이더 (겹침 판정용)
     private bool       dealtThisSwing;
 
     void Awake()
@@ -66,7 +68,6 @@ public class MonsterAI : MonoBehaviour
         bodyCol = GetComponent<BoxCollider2D>();
         anim    = GetComponent<Animator>();
         if (isFlying) rb.gravityScale = 0;
-        if (hitCollider != null) hitCol = hitCollider.GetComponent<Collider2D>();
     }
 
     void Start()
@@ -75,7 +76,6 @@ public class MonsterAI : MonoBehaviour
             player = GameObject.FindWithTag("Player")?.transform;
         if (player == null)
             Debug.LogError($"[MonsterAI] {gameObject.name}: Player를 찾을 수 없습니다!");
-        if (player != null) playerCol = player.GetComponent<Collider2D>();
         AutoPlaceGroundCheck();
         if (hitCollider != null) hitCollider.SetActive(false);
         ApplyFacing();   // 시작 시 진행 방향에 맞춰 초기 방향 적용
@@ -110,22 +110,23 @@ public class MonsterAI : MonoBehaviour
                               && Time.time > lastFlipTime + flipCooldown;
             if (shouldFlip) Flip();
         }
-        if (DistanceToPlayer() <= detectRange) state = MonsterState.Chase;
+        // 인식: 같은 층(세로 허용범위) + 가로 detectRange 안에 플레이어가 있으면 추적 시작
+        if (PlayerDetected()) state = MonsterState.Chase;
     }
 
     void Chase()
     {
         anim.Play("Walk");
-        float dist = DistanceToPlayer();
 
-        // 포탈 이동 등으로 플레이어가 너무 멀어지면 추적 포기
-        if (dist > maxChaseDistance)
+        // 포탈 이동 등으로 플레이어가 너무 멀어지면 추적 포기 (한 번 인식하면 끈질기게 추적)
+        if (DistanceToPlayer() > maxChaseDistance)
         {
             ResetToPatrol();
             return;
         }
 
-        if (dist <= attackRange && Time.time > lastAttackTime + attackCooldown)
+        // 공격: 가로 attackRange + 세로 허용범위 안 → 옆에 나란히 서면 확실히 공격
+        if (InAttackRange() && Time.time > lastAttackTime + attackCooldown)
         { state = MonsterState.Attack; return; }
 
         if (isFlying)
@@ -139,7 +140,6 @@ public class MonsterAI : MonoBehaviour
             rb.linearVelocity = new Vector2(dir * moveSpeed, rb.linearVelocity.y);
             if (dir != moveDir && Time.time > lastFlipTime + flipCooldown) Flip();
         }
-        if (dist > detectRange) state = MonsterState.Patrol;
     }
 
     // MapManager 또는 외부에서 호출 — 즉시 Patrol 상태로 리셋
@@ -182,14 +182,41 @@ public class MonsterAI : MonoBehaviour
         state          = MonsterState.Chase;
     }
 
-    // 활성화된 공격 히트박스가 플레이어 콜라이더와 겹치는지 검사
+    // 공격 모션 중(EndAttackRoutine 윈도우 동안에만 호출됨), 공격이 닿는 범위 안에
+    // 플레이어가 있는지 검사. 작은 히트박스 콜라이더 bounds 대신 "공격 사거리" 기준으로
+    // 판정해야, 몬스터가 attackRange 거리에서 멈춰 공격할 때 실제로 데미지가 들어간다.
     bool PlayerInHitbox()
     {
-        if (hitCol == null && hitCollider != null) hitCol = hitCollider.GetComponent<Collider2D>();
-        if (hitCol == null || !hitCol.isActiveAndEnabled) return false;
-        if (playerCol == null && player != null) playerCol = player.GetComponent<Collider2D>();
-        if (playerCol == null) return false;
-        return hitCol.bounds.Intersects(playerCol.bounds);
+        if (player == null) return false;
+        float hx = Mathf.Abs(player.position.x - bodyCol.bounds.center.x);
+        float hy = Mathf.Abs(player.position.y - bodyCol.bounds.center.y);
+        return hx <= attackRange + 0.3f && hy <= attackVerticalRange;
+    }
+
+    // ── 거리/감지 헬퍼 (가로·세로 분리: 2D 횡스크롤에서 같은 층 판정에 유리) ──
+    float HorizontalDistanceToPlayer()
+    {
+        if (player == null) return float.MaxValue;
+        return Mathf.Abs(player.position.x - bodyCol.bounds.center.x);
+    }
+
+    float VerticalDistanceToPlayer()
+    {
+        if (player == null) return float.MaxValue;
+        return Mathf.Abs(player.position.y - bodyCol.bounds.center.y);
+    }
+
+    // 인식은 높이 구분 없이 "반경" 판정 — 플레이어가 가까이(어느 방향이든) 오면 추적 시작.
+    // (세로 게이팅을 없애 발판 위·아래 등 높이 차가 있어도 근처면 인식하도록)
+    bool PlayerDetected()
+    {
+        return DistanceToPlayer() <= detectRange;
+    }
+
+    bool InAttackRange()
+    {
+        return HorizontalDistanceToPlayer() <= attackRange
+            && VerticalDistanceToPlayer() <= attackVerticalRange;
     }
 
     void MeleeAttack()
