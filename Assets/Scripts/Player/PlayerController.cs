@@ -79,6 +79,16 @@ public class PlayerController : MonoBehaviour
         wallSensorL2 = transform.Find("WallSensor_L2").GetComponent<Sensor_HeroKnight>();
     }
 
+    // 문영진: PlayerStats 연동 — 스탯 강화 시 이동/점프/대시 수치 반영
+    void Start()
+    {
+        var s = PlayerStats.Instance;
+        if (s == null) return;
+        moveSpeed = s.MoveSpeed;
+        jumpForce = s.JumpForce;
+        dashSpeed = s.DashSpeed;
+    }
+
     void Update()
     {
         if (isDead) return;
@@ -107,9 +117,16 @@ public class PlayerController : MonoBehaviour
         anim.SetBool("WallSlide", isWallSliding);
     }
 
+    // 문영진: NPC 패널/스탯 강화 패널이 열려있으면 입력 차단
+    bool IsAnyPanelOpen =>
+        (NPCPanelUI.Instance != null && NPCPanelUI.Instance.IsOpen) ||
+        (StatUpgradePanelUI.Instance != null && StatUpgradePanelUI.Instance.IsOpen);
+
     void UpdateMovement()
     {
         if (isDashing) return;
+        if (IsAnyPanelOpen) return;
+
         float moveX = Input.GetAxisRaw("Horizontal");
         rb.linearVelocity = new Vector2(moveX * moveSpeed, rb.linearVelocity.y);
         if      (moveX >  0.05f && !facingRight) Flip(true);
@@ -125,9 +142,29 @@ public class PlayerController : MonoBehaviour
 
     void HandleInput()
     {
+        if (IsAnyPanelOpen) return;
+
         float moveX     = Input.GetAxisRaw("Horizontal");
         int   facingDir = facingRight ? 1 : -1;
 
+        // 문영진: NPC / 던전입구 / 스탯 강화 상호작용 (E키)
+        if (Input.GetKeyDown(KeyCode.E))
+        {
+            if (Interactable.Current != null)
+            {
+                Interactable.Current.Interact();
+                return;
+            }
+        }
+
+        // Hurt (Q — 테스트용)
+        if (Input.GetKeyDown(KeyCode.Q))
+        {
+            anim.SetTrigger("Hurt");
+            return;
+        }
+
+        // Attack (좌클릭)
         if (Input.GetMouseButtonDown(0) && timeSinceAttack > attackCooldown && !isDashing)
         {
             currentAttack++;

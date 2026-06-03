@@ -28,6 +28,10 @@ public class HealthBar : MonoBehaviour
 
     void Start()
     {
+        // 문영진: PlayerStats 연동 — 스탯 강화 시 MaxHp 반영
+        if (PlayerStats.Instance != null)
+            maxHp = PlayerStats.Instance.MaxHp;
+
         currentHp   = maxHp;
         targetRatio = 1f;
         if (barFill != null) barFill.fillAmount = 1f;
