@@ -1108,6 +1108,7 @@ MonoBehaviour:
   pauseAudioWhenOpen: 1
   enabledScenes:
   - Lobby
+  - Lobby_V2
   - Stage1
 --- !u!1 &5741909633311542264
 GameObject:
