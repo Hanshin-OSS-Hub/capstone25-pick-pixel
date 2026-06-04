@@ -14,7 +14,7 @@ public static class SetupStatUpgradeTerminal
     [MenuItem("Tools/Setup Stat Upgrade Terminal")]
     public static void Run()
     {
-        Canvas canvas = Object.FindFirstObjectByType<Canvas>();
+        Canvas canvas = Object.FindAnyObjectByType<Canvas>();
         if (canvas == null)
         {
             GameObject canvasGo = new GameObject("Canvas", typeof(Canvas), typeof(CanvasScaler), typeof(GraphicRaycaster));

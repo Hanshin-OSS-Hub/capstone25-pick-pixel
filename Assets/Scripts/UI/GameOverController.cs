@@ -79,6 +79,17 @@ public class GameOverController : MonoBehaviour
         }
         _panelInstance = Instantiate(prefab, _canvas.transform);
         _panelInstance.name = PanelResourceName;
+
+        // 프리팹에 저장된 scale/sizeDelta 값과 무관하게 항상 전체 화면을 채우도록 강제
+        var rt = _panelInstance.GetComponent<RectTransform>();
+        if (rt != null)
+        {
+            rt.localScale   = Vector3.one;
+            rt.anchorMin    = Vector2.zero;
+            rt.anchorMax    = Vector2.one;
+            rt.offsetMin    = Vector2.zero;
+            rt.offsetMax    = Vector2.zero;
+        }
     }
 
     void WireButtons()
