@@ -89,9 +89,8 @@ public class MapManager : MonoBehaviour
         playerObj.transform.position = spawnPos;
         Debug.Log($"[MapManager] 플레이어 초기 배치 → {spawnPos}");
 
-        // 카메라 즉시 스냅 (CameraFollow.Start()보다 먼저 호출되지만 Awake는 완료됨)
-        var camFollow = Camera.main?.GetComponent<CameraFollow>();
-        camFollow?.SnapToTarget();
+        // 카메라는 CameraFollow.LateUpdate 가 snapDistance 이상 떨어지면 자동으로 스냅하므로
+        // 별도 SnapToTarget 호출이 필요 없다. (정인규 버전 CameraFollow 기준)
     }
 
     // ── 런 순서 생성 ─────────────────────────────────────────────

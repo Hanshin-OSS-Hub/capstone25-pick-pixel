@@ -76,6 +76,21 @@ public class MonsterAI : MonoBehaviour
             player = GameObject.FindWithTag("Player")?.transform;
         if (player == null)
             Debug.LogError($"[MonsterAI] {gameObject.name}: Player를 찾을 수 없습니다!");
+
+        // 몬스터 몸통과 플레이어 몸통의 "단단한 충돌"을 끈다.
+        // 이게 켜져 있으면 몬스터가 플레이어 옆에 붙으려 해도 콜라이더끼리 밀어내서
+        // 둘 사이 거리가 attackRange보다 멀게 유지된다 → 플레이어가 몬스터 쪽으로 계속
+        // 밀고 들어가거나(겹침) 위에서 밟아야만 공격 사거리에 들어와 공격이 나가던 문제 발생.
+        // 충돌을 무시하면 몬스터가 플레이어에게 그대로 겹쳐 붙을 수 있어,
+        // "옆에 있으면 인식 → 따라옴 → 근처에서 공격모션 → 닿으면 데미지"가 자연스럽게 동작한다.
+        // (플레이어 공격은 OverlapBox 기반이라 충돌 무시와 무관하게 정상 작동)
+        if (player != null && bodyCol != null)
+        {
+            Collider2D pCol = player.GetComponent<Collider2D>();
+            if (pCol != null)
+                Physics2D.IgnoreCollision(bodyCol, pCol, true);
+        }
+
         AutoPlaceGroundCheck();
         if (hitCollider != null) hitCollider.SetActive(false);
         ApplyFacing();   // 시작 시 진행 방향에 맞춰 초기 방향 적용
@@ -129,6 +144,17 @@ public class MonsterAI : MonoBehaviour
         if (InAttackRange() && Time.time > lastAttackTime + attackCooldown)
         { state = MonsterState.Attack; return; }
 
+        // 추적 중에는 항상 플레이어를 바라본다. (Patrol의 발판 끝 깜빡임 방지용
+        // flipCooldown은 여기선 적용하지 않음 — 적용하면 이동은 플레이어 쪽으로 하면서
+        // 스프라이트만 반대로 보는 현상이 생긴다)
+        float dx = player.position.x - bodyCol.bounds.center.x;
+        // 거의 같은 x(겹쳐 있을 때)에는 좌우 깜빡임 방지를 위해 방향 유지
+        if (Mathf.Abs(dx) > 0.1f)
+        {
+            int want = dx > 0 ? 1 : -1;
+            if (want != moveDir) FaceDirection(want);
+        }
+
         if (isFlying)
         {
             Vector2 dir = (player.position - bodyCol.bounds.center).normalized;
@@ -136,9 +162,7 @@ public class MonsterAI : MonoBehaviour
         }
         else
         {
-            float dir = Mathf.Sign(player.position.x - bodyCol.bounds.center.x);
-            rb.linearVelocity = new Vector2(dir * moveSpeed, rb.linearVelocity.y);
-            if (dir != moveDir && Time.time > lastFlipTime + flipCooldown) Flip();
+            rb.linearVelocity = new Vector2(moveDir * moveSpeed, rb.linearVelocity.y);
         }
     }
 
@@ -290,7 +314,13 @@ public class MonsterAI : MonoBehaviour
 
     void Flip()
     {
-        moveDir     *= -1;
+        FaceDirection(-moveDir);
+    }
+
+    // 지정한 방향(1: 오른쪽, -1: 왼쪽)으로 즉시 전환 + 스프라이트 적용
+    void FaceDirection(int newDir)
+    {
+        moveDir      = newDir;
         lastFlipTime = Time.time;
         ApplyFacing();
     }
