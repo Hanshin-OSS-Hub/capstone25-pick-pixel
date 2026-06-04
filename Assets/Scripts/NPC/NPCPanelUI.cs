@@ -17,6 +17,13 @@ public class NPCPanelUI : MonoBehaviour
         Instance = this;
     }
 
+    void Update()
+    {
+        if (!IsOpen) return;
+        if (Input.GetKeyDown(KeyCode.Escape) || Input.GetKeyDown(KeyCode.E))
+            Close();
+    }
+
     public void Open(NPCInteraction npc)
     {
         // TODO: 대화창 표시
