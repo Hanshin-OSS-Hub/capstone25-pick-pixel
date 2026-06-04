@@ -77,6 +77,18 @@ public class PlayerController : MonoBehaviour
         wallSensorR2 = transform.Find("WallSensor_R2").GetComponent<Sensor_HeroKnight>();
         wallSensorL1 = transform.Find("WallSensor_L1").GetComponent<Sensor_HeroKnight>();
         wallSensorL2 = transform.Find("WallSensor_L2").GetComponent<Sensor_HeroKnight>();
+
+        // 벽·플랫폼 측면에 닿았을 때 마찰로 달라붙어 멈추지 않고
+        // 자연스럽게 미끄러져 내려가도록 마찰 0 물리 머티리얼을 적용한다.
+        // (수평 이동 속도는 코드가 직접 제어하므로 바닥 정지에는 영향 없음)
+        var slick = new PhysicsMaterial2D("PlayerSlick") { friction = 0f, bounciness = 0f };
+        if (col != null) col.sharedMaterial = slick;
+        rb.sharedMaterial = slick;
+
+        // 물리는 FixedUpdate(50Hz)로 갱신되지만 카메라는 매 렌더 프레임 추적한다.
+        // 보간을 켜지 않으면 빠르게 떨어질 때 위치가 스텝 단위로 끊겨 카메라가 뚝뚝 끊기고
+        // 플레이어가 벽에 충돌하는 듯한 모션이 보인다 → Interpolate 로 프레임 사이를 부드럽게.
+        rb.interpolation = RigidbodyInterpolation2D.Interpolate;
     }
 
     // 문영진: PlayerStats 연동 — 스탯 강화 시 이동/점프/대시 수치 반영
