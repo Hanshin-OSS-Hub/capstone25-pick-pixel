@@ -164,6 +164,7 @@ Transform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!212 &5441479326983641452
 SpriteRenderer:
+  serializedVersion: 2
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
@@ -208,7 +209,8 @@ SpriteRenderer:
   m_GlobalIlluminationMeshLod: 0
   m_SortingLayerID: 0
   m_SortingLayer: 0
-  m_SortingOrder: 0
+  m_SortingOrder: 1
+  m_MaskInteraction: 0
   m_Sprite: {fileID: -6193826674915944008, guid: 7c25ab45363e134439976e72313416b9, type: 3}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_FlipX: 0
@@ -218,7 +220,6 @@ SpriteRenderer:
   m_AdaptiveModeThreshold: 0.5
   m_SpriteTileMode: 0
   m_WasSpriteAssigned: 1
-  m_MaskInteraction: 0
   m_SpriteSortPoint: 0
 --- !u!50 &8166942368343973993
 Rigidbody2D:
@@ -311,7 +312,7 @@ MonoBehaviour:
   isDashMelee: 0
   moveSpeed: 1.5
   dashSpeed: 6
-  player: {fileID: 2787955992393328856, guid: 2bcd6591d6f43284ea0ad4ab1d0a05f4, type: 3}
+  player: {fileID: 6626951786392753219, guid: 4ac5082d73908f7438dfcea64d98ee9b, type: 3}
   detectRange: 6
   groundCheck: {fileID: 3980815510289146116}
   groundCheckDistance: 0.5
@@ -319,11 +320,17 @@ MonoBehaviour:
     serializedVersion: 2
     m_Bits: 8
   attackRange: 1.8
+  attackVerticalRange: 2.5
   attackCooldown: 0.6
   attackDuration: 1
+  attackDamage: 10
+  maxChaseDistance: 30
   flipCooldown: 0.4
   spriteFacesLeft: 0
   hitCollider: {fileID: 2087495170632852914}
+  projectilePrefab: {fileID: 0}
+  firePoint: {fileID: 0}
+  firePointOffset: {x: 0.5, y: 0.1}
 --- !u!95 &8298840700875157593
 Animator:
   serializedVersion: 7
@@ -356,6 +363,9 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: dc2c3df8c404f354989e436eb3a37ad0, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::MonsterHealthBar
   yOffset: 1.7
+  barWidth: 1
+  barHeight: 0.12
+  sortingOrder: 200

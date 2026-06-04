@@ -29,20 +29,17 @@ public static class SetupLobbyInteractions
         if (collider == null) collider = station.AddComponent<BoxCollider2D>();
         collider.isTrigger = true;
 
-        GameObject highlight = CreateOrReplaceHighlight(station.transform, "InteractionHighlight", collider, new Vector2(0.18f, 0.18f));
         GameObject prompt = CreateOrReplacePrompt(station.transform, "InteractionPrompt", "E", "STAT");
+        prompt.SetActive(false);
 
         StatUpgradeStation component = station.GetComponent<StatUpgradeStation>();
         if (component == null) component = station.AddComponent<StatUpgradeStation>();
 
-        Undo.RecordObject(component, "Setup Stat Upgrade Station");
-        component.upgradePanel = statPanel;
-        component.promptUI = prompt;
-        component.highlightObject = highlight;
-        component.interactKey = KeyCode.E;
+        // 새 StatUpgradeStation은 Interactable 상속 — interactHint(protected SerializeField)만 설정
+        SerializedObject so = new SerializedObject(component);
+        so.FindProperty("interactHint").objectReferenceValue = prompt;
+        so.ApplyModifiedProperties();
 
-        highlight.SetActive(false);
-        prompt.SetActive(false);
         if (statPanel != null) statPanel.SetActive(false);
         EditorUtility.SetDirty(component);
     }

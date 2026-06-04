@@ -120,7 +120,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 0ad2b8ebd21c7644fab0a84e2619d614, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::MonsterHit
   hp: 8
 --- !u!1 &4456738967649227321
@@ -155,7 +155,7 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 2.5, y: 2.5, z: 1}
+  m_LocalScale: {x: 7.5, y: 7.5, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 4968224461351476752}
@@ -164,6 +164,7 @@ Transform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!212 &4559800264659134660
 SpriteRenderer:
+  serializedVersion: 2
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
@@ -209,6 +210,7 @@ SpriteRenderer:
   m_SortingLayerID: 0
   m_SortingLayer: 0
   m_SortingOrder: 0
+  m_MaskInteraction: 0
   m_Sprite: {fileID: -5688739654425014672, guid: fb6f4a4c3561b3a4191905276ab16e95, type: 3}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_FlipX: 0
@@ -218,7 +220,6 @@ SpriteRenderer:
   m_AdaptiveModeThreshold: 0.5
   m_SpriteTileMode: 0
   m_WasSpriteAssigned: 1
-  m_MaskInteraction: 0
   m_SpriteSortPoint: 0
 --- !u!50 &4047449770891281904
 Rigidbody2D:
@@ -303,7 +304,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 8f770df2372a9d247b7402d741690d57, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::MonsterAI
   state: 0
   isFlying: 0
@@ -311,7 +312,7 @@ MonoBehaviour:
   isDashMelee: 0
   moveSpeed: 1.2
   dashSpeed: 5
-  player: {fileID: 2787955992393328856, guid: 2bcd6591d6f43284ea0ad4ab1d0a05f4, type: 3}
+  player: {fileID: 6626951786392753219, guid: 4ac5082d73908f7438dfcea64d98ee9b, type: 3}
   detectRange: 9
   groundCheck: {fileID: 4303001444923178420}
   groundCheckDistance: 0.5
@@ -319,6 +320,7 @@ MonoBehaviour:
     serializedVersion: 2
     m_Bits: 8
   attackRange: 5
+  attackVerticalRange: 2.5
   attackCooldown: 1.5
   attackDuration: 0.75
   attackDamage: 12
@@ -346,7 +348,7 @@ Animator:
   m_LinearVelocityBlending: 0
   m_StabilizeFeet: 0
   m_AnimatePhysics: 0
-  m_WarningMessage:
+  m_WarningMessage: 
   m_HasTransformHierarchy: 1
   m_AllowConstantClipSamplingOptimization: 1
   m_KeepAnimatorStateOnDisable: 0
@@ -361,6 +363,9 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: dc2c3df8c404f354989e436eb3a37ad0, type: 3}
-  m_Name:
+  m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::MonsterHealthBar
   yOffset: 0.7
+  barWidth: 1
+  barHeight: 0.12
+  sortingOrder: 200

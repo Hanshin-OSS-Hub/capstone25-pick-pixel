@@ -10,8 +10,9 @@ public class MonsterHit : MonoBehaviour
     void Awake()
     {
         maxHp = hp;
-        // GetComponentInParent 대신 root에서 직접 검색 (더 안전)
-        healthBar = transform.root.GetComponent<MonsterHealthBar>();
+        // transform.root 는 씬 최상위를 반환하므로 방 자식에 배치된 몬스터에서 실패함
+        // → GetComponentInParent 로 부모 체인을 타고 올라가 MonsterHealthBar 탐색
+        healthBar = GetComponentInParent<MonsterHealthBar>(true);
     }
 
     // 기존 트리거 방식 (PlayerAttack 태그 히트박스) 유지
@@ -28,7 +29,7 @@ public class MonsterHit : MonoBehaviour
 
         // 지연 초기화: Awake에서 못 찾은 경우 재시도
         if (healthBar == null)
-            healthBar = transform.root.GetComponent<MonsterHealthBar>();
+            healthBar = GetComponentInParent<MonsterHealthBar>(true);
 
         hp = Mathf.Max(0, hp - damage);
 
