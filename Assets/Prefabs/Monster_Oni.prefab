@@ -322,6 +322,7 @@ MonoBehaviour:
   attackCooldown: 0.6
   attackDuration: 1
   flipCooldown: 0.4
+  spriteFacesLeft: 0
   hitCollider: {fileID: 5409021842860965954}
 --- !u!95 &7927282187350228368
 Animator:
