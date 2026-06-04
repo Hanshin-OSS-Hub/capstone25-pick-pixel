@@ -72,7 +72,10 @@ public class PauseMenuController : MonoBehaviour
     void Update()
     {
         if (!_isActiveInCurrentScene) return;
-        if (Input.GetKeyDown(toggleKey)) Toggle();
+        if (!Input.GetKeyDown(toggleKey)) return;
+        if (StatUpgradeTerminalUI.ConsumedEscapeThisFrame) return;
+        if (StatUpgradeTerminalUI.Instance != null && StatUpgradeTerminalUI.Instance.IsOpen) return;
+        Toggle();
     }
 
     // ── Public API ──────────────────────────────────────────────────────

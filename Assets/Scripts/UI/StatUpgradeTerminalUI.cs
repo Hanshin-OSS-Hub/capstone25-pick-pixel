@@ -5,6 +5,9 @@ using UnityEngine.UI;
 
 public class StatUpgradeTerminalUI : MonoBehaviour
 {
+    public static StatUpgradeTerminalUI Instance { get; private set; }
+    private static int escapeConsumedFrame = -1;
+
     [Serializable]
     public class StatRow
     {
@@ -25,10 +28,43 @@ public class StatUpgradeTerminalUI : MonoBehaviour
     [Header("Rows")]
     public StatRow[] rows;
 
+    public bool IsOpen => gameObject.activeInHierarchy;
+    public static bool ConsumedEscapeThisFrame => escapeConsumedFrame == Time.frameCount;
+
     void Awake()
     {
+        Instance = this;
         WireButtons();
         Refresh();
+    }
+
+    void OnDestroy()
+    {
+        if (Instance == this) Instance = null;
+    }
+
+    void Update()
+    {
+        if (!Input.GetKeyDown(KeyCode.Escape)) return;
+        escapeConsumedFrame = Time.frameCount;
+        Close();
+    }
+
+    public void Toggle()
+    {
+        if (gameObject.activeSelf) Close();
+        else Open();
+    }
+
+    public void Open()
+    {
+        gameObject.SetActive(true);
+        Refresh();
+    }
+
+    public void Close()
+    {
+        gameObject.SetActive(false);
     }
 
     void OnValidate()

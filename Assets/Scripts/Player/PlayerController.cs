@@ -120,12 +120,17 @@ public class PlayerController : MonoBehaviour
     // 문영진: NPC 패널/스탯 강화 패널이 열려있으면 입력 차단
     bool IsAnyPanelOpen =>
         (NPCPanelUI.Instance != null && NPCPanelUI.Instance.IsOpen) ||
-        (StatUpgradePanelUI.Instance != null && StatUpgradePanelUI.Instance.IsOpen);
+        (StatUpgradePanelUI.Instance != null && StatUpgradePanelUI.Instance.IsOpen) ||
+        (StatUpgradeTerminalUI.Instance != null && StatUpgradeTerminalUI.Instance.IsOpen);
 
     void UpdateMovement()
     {
         if (isDashing) return;
-        if (IsAnyPanelOpen) return;
+        if (IsAnyPanelOpen)
+        {
+            rb.linearVelocity = new Vector2(0f, rb.linearVelocity.y);
+            return;
+        }
 
         float moveX = Input.GetAxisRaw("Horizontal");
         rb.linearVelocity = new Vector2(moveX * moveSpeed, rb.linearVelocity.y);
@@ -142,6 +147,14 @@ public class PlayerController : MonoBehaviour
 
     void HandleInput()
     {
+        if (StatUpgradeTerminalUI.Instance != null &&
+            StatUpgradeTerminalUI.Instance.IsOpen &&
+            Input.GetKeyDown(KeyCode.E))
+        {
+            StatUpgradeTerminalUI.Instance.Close();
+            return;
+        }
+
         if (IsAnyPanelOpen) return;
 
         float moveX     = Input.GetAxisRaw("Horizontal");
