@@ -21,23 +21,34 @@ public class MonsterHealthBar : MonoBehaviour
         Sprite centerSpr = MakeSprite(new Vector2(0.5f, 0.5f));
         Sprite leftSpr   = MakeSprite(new Vector2(0f,   0.5f));
 
+        // 부모(몬스터)의 world scale을 역산해 local 값을 보정
+        // → 몬스터 scale이 10이어도 화면상 크기/위치가 일정하게 유지됨
+        float sx = Mathf.Abs(transform.lossyScale.x);
+        float sy = Mathf.Abs(transform.lossyScale.y);
+        if (sx < 0.001f) sx = 1f;
+        if (sy < 0.001f) sy = 1f;
+
+        float localY      = yOffset / sy;
+        float localW      = barWidth  / sx;
+        float localH      = barHeight / sy;
+
         // ── 테두리 (검은 테두리 효과) ──────────────────────────────────────
         var border = MakeSR("HP_Border", centerSpr, sortingOrder,
                             new Color(0f, 0f, 0f, 0.9f));
-        border.transform.localPosition = new Vector3(0f, yOffset, 0f);
-        border.transform.localScale    = new Vector3(barWidth + 0.06f, barHeight + 0.06f, 1f);
+        border.transform.localPosition = new Vector3(0f, localY, 0f);
+        border.transform.localScale    = new Vector3(localW + 0.06f / sx, localH + 0.06f / sy, 1f);
 
         // ── 배경 (어두운 회색) ──────────────────────────────────────────────
         var bg = MakeSR("HP_BG", centerSpr, sortingOrder + 1,
                         new Color(0.15f, 0.15f, 0.15f, 0.85f));
-        bg.transform.localPosition = new Vector3(0f, yOffset, 0f);
-        bg.transform.localScale    = new Vector3(barWidth, barHeight, 1f);
+        bg.transform.localPosition = new Vector3(0f, localY, 0f);
+        bg.transform.localScale    = new Vector3(localW, localH, 1f);
 
         // ── 채움 바 (왼쪽 피벗 → 오른쪽으로 줄어듦) ────────────────────────
         var fill = MakeSR("HP_Fill", leftSpr, sortingOrder + 2,
                           new Color(0.2f, 0.85f, 0.2f, 1f));
-        fill.transform.localPosition = new Vector3(-barWidth * 0.5f, yOffset, 0f);
-        fill.transform.localScale    = new Vector3(barWidth, barHeight, 1f);
+        fill.transform.localPosition = new Vector3(-localW * 0.5f, localY, 0f);
+        fill.transform.localScale    = new Vector3(localW, localH, 1f);
 
         fillTransform = fill.transform;
         fillRenderer  = fill.GetComponent<SpriteRenderer>();
@@ -50,9 +61,14 @@ public class MonsterHealthBar : MonoBehaviour
 
         float r = Mathf.Clamp01(ratio);
 
+        // world scale 역산 (Awake와 동일 로직)
+        float sx = Mathf.Abs(transform.lossyScale.x);
+        if (sx < 0.001f) sx = 1f;
+        float localW = barWidth / sx;
+
         // 왼쪽 피벗이라 localPosition.x는 고정, localScale.x만 줄이면 됨
         Vector3 s = fillTransform.localScale;
-        s.x = barWidth * r;
+        s.x = localW * r;
         fillTransform.localScale = s;
 
         // 색상: 초록 → 주황 → 빨강
