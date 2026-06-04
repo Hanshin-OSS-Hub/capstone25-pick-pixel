@@ -1,95 +1,159 @@
 using UnityEngine;
 using UnityEngine.Tilemaps;
 
+/// <summary>
+/// 플레이어를 따라가는 2D 카메라 컨트롤러
+/// [DefaultExecutionOrder(1000)] 로 모든 다른 스크립트의 Awake/Start/LateUpdate 이후 실행
+/// → MapManager.Start() 가 플레이어를 이미 배치한 뒤 CameraFollow.Start() 가 호출되므로
+///    코루틴(yield return null) 없이 즉시 스냅 가능
+/// </summary>
+[DefaultExecutionOrder(1000)]
 public class CameraFollow : MonoBehaviour
 {
-    [Header("Follow Target")]
+    [Header("추적 대상")]
     public Transform target;
 
-    [Header("Camera Settings")]
-    public float smoothDampTime = 0.15f;
-    public float snapDistance   = 10f;  // 방 이동 시 즉시 스냅 거리
+    [Header("이동 설정")]
+    public float smoothTime   = 0.15f;
+    public float snapDistance = 8f;   // 이 거리 이상이면 즉시 스냅
 
-    [Header("Debug")]
+    [Header("디버그")]
     public bool showGizmos = true;
 
-    private Vector3 smoothVelocity = Vector3.zero;
-    private float camWidth, camHeight;
-    private float minX, maxX, minY, maxY;
-    private bool hasBounds = false;
+    // ─── 내부 상태 ─────────────────────────────────────────────
+    private Vector3 velocity = Vector3.zero;
+    private float   camW, camH;
 
+    private float minX = float.MinValue, maxX = float.MaxValue;
+    private float minY = float.MinValue, maxY = float.MaxValue;
+    private bool  hasBounds = false;
+
+    // ═══════════════════════════════════════════════════════════
     void Awake()
     {
-        Camera cam = Camera.main;
-        camHeight = cam.orthographicSize * 2f;
-        camWidth  = camHeight * cam.aspect;
-        SetNoBounds();
+        Camera cam = GetComponent<Camera>();
+        if (cam != null)
+        {
+            camH = cam.orthographicSize * 2f;
+            camW = camH * cam.aspect;
+        }
+
+        // ── Pixel Perfect Camera 비활성화 (위치 덮어쓰기 방지) ──
+        foreach (var b in GetComponents<Behaviour>())
+        {
+            if (b.GetType().Name == "PixelPerfectCamera")
+            {
+                b.enabled = false;
+                Debug.Log("[CameraFollow] Pixel Perfect Camera 비활성화 완료");
+                break;
+            }
+        }
+
+        if (target == null) TryFindPlayer();
     }
 
-    // MapManager에서 유니온 Bounds로 호출
+    void Start()
+    {
+        // [DefaultExecutionOrder(1000)] 로 인해 MapManager.Start() 가 먼저 실행됨
+        // → 플레이어가 이미 startRoom 에 배치된 상태이므로 코루틴 없이 즉시 스냅
+        if (target == null) TryFindPlayer();
+        SnapToTarget();
+    }
+
+    /// <summary>
+    /// 카메라를 target 위치로 즉시 스냅. MapManager에서 플레이어 이동 후 호출 가능.
+    /// </summary>
+    public void SnapToTarget()
+    {
+        if (target == null) TryFindPlayer();
+        if (target == null) return;
+
+        transform.position = new Vector3(
+            target.position.x,
+            target.position.y,
+            transform.position.z);
+        velocity = Vector3.zero;
+        Debug.Log($"[CameraFollow] 스냅 → {transform.position}");
+    }
+
+    void TryFindPlayer()
+    {
+        GameObject p = GameObject.FindWithTag("Player");
+        if (p != null)
+        {
+            target = p.transform;
+            Debug.Log("[CameraFollow] Player 태그로 탐색 성공");
+            return;
+        }
+        var pc = FindAnyObjectByType<PlayerController>();
+        if (pc != null)
+        {
+            target = pc.transform;
+            Debug.Log("[CameraFollow] PlayerController 로 탐색 성공");
+        }
+    }
+
+    // ── 매 프레임 카메라 이동 (모든 LateUpdate 이후 실행) ──────
+    void LateUpdate()
+    {
+        if (target == null) { TryFindPlayer(); return; }
+
+        float tx = target.position.x;
+        float ty = target.position.y;
+        float cx = transform.position.x;
+        float cy = transform.position.y;
+
+        float dist = Vector2.Distance(new Vector2(cx, cy), new Vector2(tx, ty));
+
+        // 포탈 이동 등 → 클램프 없이 즉시 스냅
+        if (dist > snapDistance)
+        {
+            transform.position = new Vector3(tx, ty, transform.position.z);
+            velocity = Vector3.zero;
+            return;
+        }
+
+        // 일반 추적 : 방 경계 안에서만 클램프
+        float destX = hasBounds ? Mathf.Clamp(tx, minX, maxX) : tx;
+        float destY = hasBounds ? Mathf.Clamp(ty, minY, maxY) : ty;
+
+        float x = Mathf.SmoothDamp(cx, destX, ref velocity.x, smoothTime);
+        float y = Mathf.SmoothDamp(cy, destY, ref velocity.y, smoothTime);
+
+        transform.position = new Vector3(x, y, transform.position.z);
+    }
+
+    // ── MapManager 에서 호출하는 Bounds 설정 ─────────────────
     public void SetRoomBounds(Bounds worldBounds)
     {
-        minX = worldBounds.min.x + camWidth  / 2f;
-        maxX = worldBounds.max.x - camWidth  / 2f;
-        minY = worldBounds.min.y + camHeight / 2f;
-        maxY = worldBounds.max.y - camHeight / 2f;
+        minX = worldBounds.min.x + camW / 2f;
+        maxX = worldBounds.max.x - camW / 2f;
+        minY = worldBounds.min.y + camH / 2f;
+        maxY = worldBounds.max.y - camH / 2f;
 
         if (minX > maxX) { minX = float.MinValue; maxX = float.MaxValue; }
         if (minY > maxY) { minY = float.MinValue; maxY = float.MaxValue; }
 
         hasBounds = true;
-        Debug.Log($"[CameraFollow] Bounds 갱신 → X({minX:F1}~{maxX:F1}) Y({minY:F1}~{maxY:F1})");
+        Debug.Log($"[CameraFollow] Bounds 설정 X({minX:F1}~{maxX:F1}) Y({minY:F1}~{maxY:F1})");
     }
 
-    // 이름 기반 구버전 호환 (직접 Tilemap 넘길 때)
     public void SetRoomBounds(Tilemap tilemap)
     {
-        if (tilemap == null) { SetNoBounds(); return; }
-
+        if (tilemap == null) { ClearBounds(); return; }
         tilemap.CompressBounds();
         BoundsInt bi = tilemap.cellBounds;
-        Vector3 minW = tilemap.CellToWorld(bi.min);
-        Vector3 maxW = tilemap.CellToWorld(bi.max) + tilemap.layoutGrid.cellSize;
-        Bounds b = new Bounds();
-        b.SetMinMax(minW, maxW);
+        var b = new Bounds();
+        b.SetMinMax(tilemap.CellToWorld(bi.min),
+                    tilemap.CellToWorld(bi.max) + tilemap.layoutGrid.cellSize);
         SetRoomBounds(b);
     }
 
-    public void ClearBounds() { SetNoBounds(); }
-
-    void SetNoBounds()
+    public void ClearBounds()
     {
         minX = float.MinValue; maxX = float.MaxValue;
         minY = float.MinValue; maxY = float.MaxValue;
         hasBounds = false;
-    }
-
-    void LateUpdate()
-    {
-        if (!target) return;
-
-        Vector3 cameraPos = transform.position;
-        Vector2 cam2D     = new Vector2(cameraPos.x, cameraPos.y);
-        Vector2 target2D  = new Vector2(target.position.x, target.position.y);
-
-        // 방 이동처럼 멀리 떨어지면 즉시 스냅
-        if (Vector2.Distance(cam2D, target2D) > snapDistance)
-        {
-            smoothVelocity = Vector3.zero;
-            transform.position = new Vector3(
-                Mathf.Clamp(target2D.x, minX, maxX),
-                Mathf.Clamp(target2D.y, minY, maxY),
-                cameraPos.z);
-            return;
-        }
-
-        float x = Mathf.SmoothDamp(cameraPos.x, target.position.x, ref smoothVelocity.x, smoothDampTime);
-        float y = Mathf.SmoothDamp(cameraPos.y, target.position.y, ref smoothVelocity.y, smoothDampTime);
-
-        x = Mathf.Clamp(x, minX, maxX);
-        y = Mathf.Clamp(y, minY, maxY);
-
-        transform.position = new Vector3(x, y, cameraPos.z);
     }
 
     void OnDrawGizmos()

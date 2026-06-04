@@ -73,13 +73,16 @@ public class MapManager : MonoBehaviour
         room.SetActive(true);
         Debug.Log($"현재 방: {room.name} ({currentRoomIndex + 1}/{currentRunRooms.Count})");
 
-        // 방 안의 모든 Tilemap 유니온 bounds로 카메라 범위 설정
+        // 카메라 경계는 TilemapCollider2D가 있는 솔리드 타일맵만 기준으로 한다.
+        // 장식(Decoration) 타일맵처럼 콜라이더 없는 레이어는 무시
+        // → 장식을 맵 밖까지 칠해도 카메라가 공허를 보이지 않음
         var camFollow = Camera.main?.GetComponent<CameraFollow>();
         if (camFollow == null) return;
 
         Bounds? unionBounds = null;
         foreach (var tm in room.GetComponentsInChildren<Tilemap>())
         {
+            if (tm.GetComponent<TilemapCollider2D>() == null) continue; // 솔리드 타일맵만
             tm.CompressBounds();
             if (tm.cellBounds.size == Vector3Int.zero) continue;
             Vector3 minW = tm.CellToWorld(tm.cellBounds.min);
