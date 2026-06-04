@@ -235,14 +235,20 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::MapManager
   startRoom: {fileID: 786758775}
+  bossRoom: {fileID: 627798323}
   exitRoom: {fileID: 247385936}
   combatRooms:
   - {fileID: 1670864923}
   - {fileID: 754813410}
   - {fileID: 82669545}
   - {fileID: 813320280}
+  verticalRooms:
+  - {fileID: 1478647929}
+  - {fileID: 169918504}
   minCombatRooms: 3
   maxCombatRooms: 5
+  minVerticalRooms: 1
+  maxVerticalRooms: 2
 --- !u!4 &57710397
 Transform:
   m_ObjectHideFlags: 0
