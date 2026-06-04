@@ -109,25 +109,18 @@ public class MapManager : MonoBehaviour
         // 2. 중간 방 리스트 구성 (전투방 + 수직맵 보장)
         var middleRooms = new List<GameObject>();
 
-        //  ▸ 전투방: minCombatRooms ~ maxCombatRooms 개 (연속 중복 방지)
+        //  ▸ 전투방: minCombatRooms ~ maxCombatRooms 개 (한 런에 중복 없음 = 비복원 추출)
+        //    등록된 방 수보다 많이 요청하면 가능한 만큼(중복 없이)만 배치된다.
         int combatCount = Random.Range(minCombatRooms,
                           Mathf.Max(minCombatRooms, maxCombatRooms) + 1);
-        int lastCombat  = -1;
-        for (int i = 0; i < combatCount && combatRooms != null && combatRooms.Length > 0; i++)
-        {
-            int idx = PickWithoutRepeat(combatRooms.Length, ref lastCombat);
-            middleRooms.Add(combatRooms[idx]);
-        }
+        var pickedCombat = PickDistinct(combatRooms, combatCount);
+        middleRooms.AddRange(pickedCombat);
 
-        //  ▸ 수직맵: minVerticalRooms ~ maxVerticalRooms 개 (연속 중복 방지)
+        //  ▸ 수직맵: minVerticalRooms ~ maxVerticalRooms 개 (한 런에 중복 없음)
         int vertCount  = Random.Range(minVerticalRooms,
                          Mathf.Max(minVerticalRooms, maxVerticalRooms) + 1);
-        int lastVert   = -1;
-        for (int i = 0; i < vertCount && verticalRooms != null && verticalRooms.Length > 0; i++)
-        {
-            int idx = PickWithoutRepeat(verticalRooms.Length, ref lastVert);
-            middleRooms.Add(verticalRooms[idx]);
-        }
+        var pickedVert = PickDistinct(verticalRooms, vertCount);
+        middleRooms.AddRange(pickedVert);
 
         // 3. 중간 방 셔플 (피셔-예이츠)
         for (int i = middleRooms.Count - 1; i > 0; i--)
@@ -149,20 +142,32 @@ public class MapManager : MonoBehaviour
         currentRunRooms.Add(exitRoom);
 
         Debug.Log($"===== 런 생성: 총 {currentRunRooms.Count}개 방 " +
-                  $"(전투 {combatCount}개, 수직 {vertCount}개) =====");
+                  $"(전투 {pickedCombat.Count}개, 수직 {pickedVert.Count}개) =====");
     }
 
-    // 연속 중복 방지 선택 (ref 로 마지막 인덱스 추적)
-    private static int PickWithoutRepeat(int max, ref int lastIndex)
+    // 풀에서 중복 없이 최대 count개를 무작위로 뽑는다 (피셔-예이츠 셔플 후 앞에서 count개).
+    // 요청 개수가 등록된 방 수보다 많으면 가능한 만큼만(중복 없이) 반환한다.
+    private static List<GameObject> PickDistinct(GameObject[] pool, int count)
     {
-        if (max <= 1) return 0;
-        var available = new List<int>();
-        for (int i = 0; i < max; i++)
-            if (i != lastIndex) available.Add(i);
-        if (available.Count == 0) available.Add(0);   // 방이 1개뿐일 때 fallback
-        int selected = available[Random.Range(0, available.Count)];
-        lastIndex = selected;
-        return selected;
+        var result = new List<GameObject>();
+        if (pool == null || pool.Length == 0 || count <= 0) return result;
+
+        // null 슬롯 제외한 후보 인덱스 수집
+        var indices = new List<int>();
+        for (int i = 0; i < pool.Length; i++)
+            if (pool[i] != null) indices.Add(i);
+
+        // 피셔-예이츠 셔플
+        for (int i = indices.Count - 1; i > 0; i--)
+        {
+            int j = Random.Range(0, i + 1);
+            (indices[i], indices[j]) = (indices[j], indices[i]);
+        }
+
+        int take = Mathf.Min(count, indices.Count);
+        for (int i = 0; i < take; i++)
+            result.Add(pool[indices[i]]);
+        return result;
     }
 
     // ── 방 활성화/비활성화 ────────────────────────────────────────
