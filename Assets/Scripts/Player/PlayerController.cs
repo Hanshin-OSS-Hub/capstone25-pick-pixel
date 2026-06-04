@@ -42,6 +42,10 @@ public class PlayerController : MonoBehaviour
     private Animator    anim;
     private Collider2D  col;
 
+    private PhysicsMaterial2D slickMat;   // 공중용: 마찰 0 → 벽에 붙어도 멈추지 않고 자연스럽게 슬라이딩
+    private PhysicsMaterial2D gripMat;    // 바닥용: 정상 마찰 → 경사/발판 위에서 미끄러지지 않음
+    private PhysicsMaterial2D currentMat; // 현재 적용된 머티리얼(중복 적용 방지)
+
     private Sensor_HeroKnight groundSensor;
     private Sensor_HeroKnight wallSensorR1;
     private Sensor_HeroKnight wallSensorR2;
@@ -78,12 +82,11 @@ public class PlayerController : MonoBehaviour
         wallSensorL1 = transform.Find("WallSensor_L1").GetComponent<Sensor_HeroKnight>();
         wallSensorL2 = transform.Find("WallSensor_L2").GetComponent<Sensor_HeroKnight>();
 
-        // 벽·플랫폼 측면에 닿았을 때 마찰로 달라붙어 멈추지 않고
-        // 자연스럽게 미끄러져 내려가도록 마찰 0 물리 머티리얼을 적용한다.
-        // (수평 이동 속도는 코드가 직접 제어하므로 바닥 정지에는 영향 없음)
-        var slick = new PhysicsMaterial2D("PlayerSlick") { friction = 0f, bounciness = 0f };
-        if (col != null) col.sharedMaterial = slick;
-        rb.sharedMaterial = slick;
+        // 벽 슬라이딩(공중에서 벽에 붙었을 때)은 마찰로 달라붙어 멈추지 않도록 '공중'에선 마찰 0,
+        // 바닥/경사/발판 위에선 정상 마찰을 줘서 미끄러지지 않게 한다. (전환은 UpdateGrounded에서)
+        slickMat = new PhysicsMaterial2D("PlayerSlick") { friction = 0f,   bounciness = 0f };
+        gripMat  = new PhysicsMaterial2D("PlayerGrip")  { friction = 0.6f, bounciness = 0f };
+        ApplyFrictionMaterial(gripMat);
 
         // 물리는 FixedUpdate(50Hz)로 갱신되지만 카메라는 매 렌더 프레임 추적한다.
         // 보간을 켜지 않으면 빠르게 떨어질 때 위치가 스텝 단위로 끊겨 카메라가 뚝뚝 끊기고
@@ -120,6 +123,18 @@ public class PlayerController : MonoBehaviour
         { grounded = true; jumpCount = 0; anim.SetBool("Grounded", true); }
         else if (grounded && !state)
         { grounded = false; anim.SetBool("Grounded", false); }
+
+        // 바닥에선 정상 마찰(경사/발판 미끄러짐 방지), 공중에선 마찰 0(벽 슬라이딩 자연스럽게)
+        ApplyFrictionMaterial(grounded ? gripMat : slickMat);
+    }
+
+    // 물리 머티리얼 전환 (실제로 바뀔 때만 적용)
+    void ApplyFrictionMaterial(PhysicsMaterial2D m)
+    {
+        if (m == null || currentMat == m) return;
+        currentMat = m;
+        if (col != null) col.sharedMaterial = m;
+        if (rb  != null) rb.sharedMaterial  = m;
     }
 
     void UpdateWallSlide()
