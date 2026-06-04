@@ -48,12 +48,13 @@ public class PlayerController : MonoBehaviour
     private Sensor_HeroKnight wallSensorL1;
     private Sensor_HeroKnight wallSensorL2;
 
+    // ── 내부 상태 ──────────────────────────────────────────────────────────
     private bool  facingRight   = true;
     private bool  grounded      = false;
     private bool  isWallSliding = false;
     private bool  isDashing     = false;
     private bool  isDead        = false;
-    private bool  isInvincible  = false;
+    private bool  isInvincible  = false;    // 피격 무적 프레임 (정인규)
 
     private int   jumpCount       = 0;
     private int   currentAttack   = 0;
@@ -64,6 +65,7 @@ public class PlayerController : MonoBehaviour
     // 외부 읽기용 (DeathZone 등에서 사용)
     public bool IsDead => isDead;
 
+    // ═══════════════════════════════════════════════════════════════════════
     void Awake()
     {
         rb   = GetComponent<Rigidbody2D>();
@@ -75,6 +77,16 @@ public class PlayerController : MonoBehaviour
         wallSensorR2 = transform.Find("WallSensor_R2").GetComponent<Sensor_HeroKnight>();
         wallSensorL1 = transform.Find("WallSensor_L1").GetComponent<Sensor_HeroKnight>();
         wallSensorL2 = transform.Find("WallSensor_L2").GetComponent<Sensor_HeroKnight>();
+    }
+
+    // 문영진: PlayerStats 연동 — 스탯 강화 시 이동/점프/대시 수치 반영
+    void Start()
+    {
+        var s = PlayerStats.Instance;
+        if (s == null) return;
+        moveSpeed = s.MoveSpeed;
+        jumpForce = s.JumpForce;
+        dashSpeed = s.DashSpeed;
     }
 
     void Update()
@@ -105,9 +117,16 @@ public class PlayerController : MonoBehaviour
         anim.SetBool("WallSlide", isWallSliding);
     }
 
+    // 문영진: NPC 패널/스탯 강화 패널이 열려있으면 입력 차단
+    bool IsAnyPanelOpen =>
+        (NPCPanelUI.Instance != null && NPCPanelUI.Instance.IsOpen) ||
+        (StatUpgradePanelUI.Instance != null && StatUpgradePanelUI.Instance.IsOpen);
+
     void UpdateMovement()
     {
         if (isDashing) return;
+        if (IsAnyPanelOpen) return;
+
         float moveX = Input.GetAxisRaw("Horizontal");
         rb.linearVelocity = new Vector2(moveX * moveSpeed, rb.linearVelocity.y);
         if      (moveX >  0.05f && !facingRight) Flip(true);
@@ -123,9 +142,29 @@ public class PlayerController : MonoBehaviour
 
     void HandleInput()
     {
+        if (IsAnyPanelOpen) return;
+
         float moveX     = Input.GetAxisRaw("Horizontal");
         int   facingDir = facingRight ? 1 : -1;
 
+        // 문영진: NPC / 던전입구 / 스탯 강화 상호작용 (E키)
+        if (Input.GetKeyDown(KeyCode.E))
+        {
+            if (Interactable.Current != null)
+            {
+                Interactable.Current.Interact();
+                return;
+            }
+        }
+
+        // Hurt (Q — 테스트용)
+        if (Input.GetKeyDown(KeyCode.Q))
+        {
+            anim.SetTrigger("Hurt");
+            return;
+        }
+
+        // Attack (좌클릭)
         if (Input.GetMouseButtonDown(0) && timeSinceAttack > attackCooldown && !isDashing)
         {
             currentAttack++;
@@ -180,6 +219,7 @@ public class PlayerController : MonoBehaviour
         }
     }
 
+    // ── 피격 / 회복 (정인규) ──────────────────────────────────────────────
     public void TakeDamage(float amount)
     {
         if (isDead || isInvincible) return;
@@ -195,21 +235,26 @@ public class PlayerController : MonoBehaviour
         if (healthBar != null) healthBar.Heal(amount);
     }
 
-    // public으로 외부(DeathZone 등)에서도 호출 가능
+    // ── 사망 처리 — public으로 외부(DeathZone 등)에서도 호출 가능 ─────────
     public void Die()
     {
         if (isDead) return;
         isDead = true;
+
         rb.linearVelocity = Vector2.zero;
+
+        // healthBar 가 Inspector에 연결된 경우 HP 를 0 으로
         if (healthBar != null) healthBar.TakeDamage(healthBar.MaxHp);
+
         anim.SetBool("noBlood", noBlood);
         anim.SetTrigger("Death");
-        Debug.Log("[Player] 사망!");
 
+        Debug.Log("[Player] 사망!");
         if (GameOverController.Instance != null)
             GameOverController.Instance.ShowGameOverDelayed(1.2f);
     }
 
+    // ── 무적 코루틴 (정인규) ──────────────────────────────────────────────
     IEnumerator InvincibleRoutine()
     {
         isInvincible = true;
@@ -217,6 +262,7 @@ public class PlayerController : MonoBehaviour
         isInvincible = false;
     }
 
+    // ── 대시 코루틴 ───────────────────────────────────────────────────────
     IEnumerator DashRoutine(float moveX, int facingDir)
     {
         isDashing    = true;
@@ -231,9 +277,9 @@ public class PlayerController : MonoBehaviour
         isDashing       = false;
     }
 
+    // ── 공격 히트박스 코루틴 (정인규) ────────────────────────────────────
     IEnumerator AttackHitRoutine(int attackNum)
     {
-        // 콤보별 칼이 닿는 타이밍
         float delay = attackNum == 1 ? 0.15f : attackNum == 2 ? 0.20f : 0.25f;
         yield return new WaitForSeconds(delay);
         if (isDead) yield break;
@@ -243,19 +289,17 @@ public class PlayerController : MonoBehaviour
                        + new Vector2(dir * attackHitOffset, 1.2f);
         Vector2 size   = new Vector2(attackHitWidth, attackHitHeight);
 
-        // Monster 레이어만 탐색 (Ground·Player 등 불필요 충돌 제외)
-        int monsterMask = LayerMask.GetMask("Monster");
-        Collider2D[]        cols    = Physics2D.OverlapBoxAll(center, size, 0f, monsterMask);
+        Collider2D[]        cols    = Physics2D.OverlapBoxAll(center, size, 0f);
         HashSet<MonsterHit> damaged = new HashSet<MonsterHit>();
-        foreach (var col in cols)
+        foreach (var c in cols)
         {
-            // 루트 오브젝트에서 MonsterHit 탐색 (HitCollider 비활성 포함)
-            MonsterHit mh = col.transform.root.GetComponentInChildren<MonsterHit>(true);
+            MonsterHit mh = c.transform.root.GetComponentInChildren<MonsterHit>(true);
             if (mh != null && damaged.Add(mh))
                 mh.TakeDamage(attackDamage);
         }
     }
 
+    // ── 플랫폼 하강 코루틴 ────────────────────────────────────────────────
     IEnumerator DropThrough()
     {
         RaycastHit2D hit = Physics2D.Raycast(
@@ -268,6 +312,7 @@ public class PlayerController : MonoBehaviour
         }
     }
 
+    // ── 방향 전환 ─────────────────────────────────────────────────────────
     void Flip(bool toRight)
     {
         facingRight = toRight;
@@ -276,6 +321,7 @@ public class PlayerController : MonoBehaviour
         transform.localScale = s;
     }
 
+    // ── 애니메이션 이벤트 : 벽 슬라이드 파티클 ──────────────────────────
     void AE_SlideDust()
     {
         if (slideDust == null) return;

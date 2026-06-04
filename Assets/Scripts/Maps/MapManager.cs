@@ -16,10 +16,10 @@ public class MapManager : MonoBehaviour
     [SerializeField] private GameObject[] verticalRooms;
 
     [Header("=== 생성 설정 ===")]
-    [SerializeField] private int minCombatRooms   = 3;
-    [SerializeField] private int maxCombatRooms   = 5;
-    [SerializeField] private int minVerticalRooms = 1;
-    [SerializeField] private int maxVerticalRooms = 2;
+    [SerializeField] private int minCombatRooms  = 3;   // 전투방 최소
+    [SerializeField] private int maxCombatRooms  = 5;   // 전투방 최대
+    [SerializeField] private int minVerticalRooms = 1;  // 수직맵 최소
+    [SerializeField] private int maxVerticalRooms = 2;  // 수직맵 최대
 
     private List<GameObject> currentRunRooms = new List<GameObject>();
     private int currentRoomIndex = 0;
@@ -43,37 +43,53 @@ public class MapManager : MonoBehaviour
     // ── 플레이어 초기 배치 ──────────────────────────────────────
     private void SpawnPlayerInStartRoom()
     {
-        if (startRoom == null) { Debug.LogWarning("[MapManager] startRoom 미연결"); return; }
+        if (startRoom == null)
+        {
+            Debug.LogWarning("[MapManager] startRoom이 연결되지 않았습니다.");
+            return;
+        }
 
         GameObject playerObj = GameObject.FindWithTag("Player");
         if (playerObj == null)
         {
-            var pc = FindAnyObjectByType<PlayerController>();
+            PlayerController pc = FindAnyObjectByType<PlayerController>();
             if (pc != null) playerObj = pc.gameObject;
         }
-        if (playerObj == null) { Debug.LogWarning("[MapManager] Player를 찾지 못했습니다."); return; }
+        if (playerObj == null)
+        {
+            Debug.LogWarning("[MapManager] Player 오브젝트를 찾지 못했습니다.");
+            return;
+        }
 
+        // Portals/Portal_Left 탐색 → 없으면 재귀 탐색 → 없으면 방 중심
         Transform portals    = startRoom.transform.Find("Portals");
         Transform portalLeft = portals?.Find("Portal_Left");
 
         if (portalLeft == null)
         {
             foreach (Transform t in startRoom.GetComponentsInChildren<Transform>(true))
+            {
                 if (t.name == "Portal_Left") { portalLeft = t; break; }
+            }
         }
 
         Vector3 spawnPos;
         if (portalLeft != null)
-            spawnPos = new Vector3(portalLeft.position.x + 3f, portalLeft.position.y, 0f);
+        {
+            spawnPos = new Vector3(portalLeft.position.x + 3f,
+                                   portalLeft.position.y, 0f);
+        }
         else
         {
-            spawnPos = new Vector3(startRoom.transform.position.x, startRoom.transform.position.y, 0f);
-            Debug.LogWarning("[MapManager] Portal_Left 없음 → 방 중심에 배치");
+            spawnPos = new Vector3(startRoom.transform.position.x,
+                                   startRoom.transform.position.y, 0f);
+            Debug.LogWarning("[MapManager] Portal_Left를 찾지 못해 방 중심에 배치합니다.");
         }
 
         playerObj.transform.position = spawnPos;
-        Debug.Log($"[MapManager] 플레이어 배치 → {spawnPos}");
+        Debug.Log($"[MapManager] 플레이어 초기 배치 → {spawnPos}");
 
+        // 배치 직후 카메라를 즉시 스냅 (CameraFollow.SnapToTarget)
         var camFollow = Camera.main?.GetComponent<CameraFollow>();
         camFollow?.SnapToTarget();
     }
@@ -90,20 +106,23 @@ public class MapManager : MonoBehaviour
         // 1. 시작방
         currentRunRooms.Add(startRoom);
 
-        // 2. 중간 방 (전투방 + 수직맵 셔플)
+        // 2. 중간 방 리스트 구성 (전투방 + 수직맵 보장)
         var middleRooms = new List<GameObject>();
 
-        int combatCount = Random.Range(minCombatRooms, Mathf.Max(minCombatRooms, maxCombatRooms) + 1);
-        int lastCombat  = -1;
-        for (int i = 0; i < combatCount && combatRooms != null && combatRooms.Length > 0; i++)
-            middleRooms.Add(combatRooms[PickWithoutRepeat(combatRooms.Length, ref lastCombat)]);
+        //  ▸ 전투방: minCombatRooms ~ maxCombatRooms 개 (한 런에 중복 없음 = 비복원 추출)
+        //    등록된 방 수보다 많이 요청하면 가능한 만큼(중복 없이)만 배치된다.
+        int combatCount = Random.Range(minCombatRooms,
+                          Mathf.Max(minCombatRooms, maxCombatRooms) + 1);
+        var pickedCombat = PickDistinct(combatRooms, combatCount);
+        middleRooms.AddRange(pickedCombat);
 
-        int vertCount = Random.Range(minVerticalRooms, Mathf.Max(minVerticalRooms, maxVerticalRooms) + 1);
-        int lastVert  = -1;
-        for (int i = 0; i < vertCount && verticalRooms != null && verticalRooms.Length > 0; i++)
-            middleRooms.Add(verticalRooms[PickWithoutRepeat(verticalRooms.Length, ref lastVert)]);
+        //  ▸ 수직맵: minVerticalRooms ~ maxVerticalRooms 개 (한 런에 중복 없음)
+        int vertCount  = Random.Range(minVerticalRooms,
+                         Mathf.Max(minVerticalRooms, maxVerticalRooms) + 1);
+        var pickedVert = PickDistinct(verticalRooms, vertCount);
+        middleRooms.AddRange(pickedVert);
 
-        // 피셔-예이츠 셔플
+        // 3. 중간 방 셔플 (피셔-예이츠)
         for (int i = middleRooms.Count - 1; i > 0; i--)
         {
             int j = Random.Range(0, i + 1);
@@ -112,36 +131,51 @@ public class MapManager : MonoBehaviour
         foreach (var r in middleRooms)
             currentRunRooms.Add(r);
 
-        // 3. 보스방
+        // 4. 보스방
         if (bossRoom != null)
         {
             bossRoomIndex = currentRunRooms.Count;
             currentRunRooms.Add(bossRoom);
         }
 
-        // 4. 출구
+        // 5. 출구
         currentRunRooms.Add(exitRoom);
 
         Debug.Log($"===== 런 생성: 총 {currentRunRooms.Count}개 방 " +
-                  $"(전투 {combatCount}개, 수직 {vertCount}개) =====");
+                  $"(전투 {pickedCombat.Count}개, 수직 {pickedVert.Count}개) =====");
     }
 
-    private static int PickWithoutRepeat(int max, ref int lastIndex)
+    // 풀에서 중복 없이 최대 count개를 무작위로 뽑는다 (피셔-예이츠 셔플 후 앞에서 count개).
+    // 요청 개수가 등록된 방 수보다 많으면 가능한 만큼만(중복 없이) 반환한다.
+    private static List<GameObject> PickDistinct(GameObject[] pool, int count)
     {
-        if (max <= 1) return 0;
-        var available = new List<int>();
-        for (int i = 0; i < max; i++)
-            if (i != lastIndex) available.Add(i);
-        if (available.Count == 0) available.Add(0);
-        int selected = available[Random.Range(0, available.Count)];
-        lastIndex = selected;
-        return selected;
+        var result = new List<GameObject>();
+        if (pool == null || pool.Length == 0 || count <= 0) return result;
+
+        // null 슬롯 제외한 후보 인덱스 수집
+        var indices = new List<int>();
+        for (int i = 0; i < pool.Length; i++)
+            if (pool[i] != null) indices.Add(i);
+
+        // 피셔-예이츠 셔플
+        for (int i = indices.Count - 1; i > 0; i--)
+        {
+            int j = Random.Range(0, i + 1);
+            (indices[i], indices[j]) = (indices[j], indices[i]);
+        }
+
+        int take = Mathf.Min(count, indices.Count);
+        for (int i = 0; i < take; i++)
+            result.Add(pool[indices[i]]);
+        return result;
     }
 
     // ── 방 활성화/비활성화 ────────────────────────────────────────
     private void DeactivateAllRooms()
     {
-        // 공통 부모(Sections 등) 아래 모든 방 비활성화
+        // 방들의 공통 부모(Sections) 아래 "모든" 방을 끈다.
+        // → combatRooms/verticalRooms 에 등록되지 않은 방(여관/상점/보물 등)도 확실히 비활성화하여
+        //   항상 켜진 채 화면에 남는 문제를 방지한다.
         Transform parent = startRoom != null ? startRoom.transform.parent : null;
         if (parent != null)
         {
@@ -149,11 +183,12 @@ public class MapManager : MonoBehaviour
                 child.gameObject.SetActive(false);
             return;
         }
-        // 폴백
+
+        // 폴백: 부모를 찾지 못하면 등록된 방만 비활성화
         if (startRoom != null) startRoom.SetActive(false);
         if (bossRoom  != null) bossRoom.SetActive(false);
         if (exitRoom  != null) exitRoom.SetActive(false);
-        if (combatRooms   != null) foreach (var r in combatRooms)   if (r) r.SetActive(false);
+        if (combatRooms  != null) foreach (var r in combatRooms)  if (r) r.SetActive(false);
         if (verticalRooms != null) foreach (var r in verticalRooms) if (r) r.SetActive(false);
     }
 
@@ -164,10 +199,12 @@ public class MapManager : MonoBehaviour
 
         GameObject room = currentRunRooms[currentRoomIndex];
         if (room == null) return;
+
         room.SetActive(true);
         Debug.Log($"현재 방: {room.name} ({currentRoomIndex + 1}/{currentRunRooms.Count})");
 
-        // 카메라 bounds 설정 (우리 수정 버전 유지)
+        // 카메라 범위: "밟는 지형"(Ground/Platform 등) 타일맵 우선,
+        // 없으면 모든 타일맵 유니온으로 폴백
         var camFollow = Camera.main?.GetComponent<CameraFollow>();
         if (camFollow != null)
         {
