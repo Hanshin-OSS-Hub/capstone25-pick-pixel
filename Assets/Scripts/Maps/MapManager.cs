@@ -76,9 +76,13 @@ public class MapManager : MonoBehaviour
         var camFollow = Camera.main?.GetComponent<CameraFollow>();
         if (camFollow == null) return;
 
-        // 모든 Tilemap 유니온으로 방 경계 계산 (배경/장식 포함 → 실제 방 전체 커버)
-        // TilemapCollider2D 필터를 쓰면 PlatformTilemap만 잡혀 bounds가 너무 좁아짐
-        Bounds? unionBounds = CalcTilemapBounds(room, solidOnly: false);
+        // Ground/Platform 타일맵만 기준 사용 (Background/Decoration 제외)
+        // → Background 타일맵이 오른쪽 벽 너머까지 칠해져 있으면 bounds가 과도하게 커져 공허가 보임
+        Bounds? unionBounds = CalcGroundTilemapBounds(room);
+
+        // 아무것도 못 찾으면 전체 타일맵 폴백
+        if (!unionBounds.HasValue)
+            unionBounds = CalcTilemapBounds(room, solidOnly: false);
 
         if (unionBounds.HasValue) camFollow.SetRoomBounds(unionBounds.Value);
         else                      camFollow.ClearBounds();
@@ -89,6 +93,35 @@ public class MapManager : MonoBehaviour
         if (currentRoomIndex < currentRunRooms.Count - 1)
         { currentRoomIndex++; ActivateCurrentRoom(); }
         else Debug.Log("===== 스테이지 클리어! =====");
+    }
+
+    // Ground/Platform 계열 타일맵만 사용 (Background·Decoration 제외)
+    static readonly string[] GroundTilemapNames = { "GroundTilemap", "PlatformTilemap", "Platforms", "Ground" };
+    static readonly string[] ExcludeTilemapNames = { "Background", "Decoration", "DecorationTilemap" };
+
+    static Bounds? CalcGroundTilemapBounds(GameObject room)
+    {
+        Bounds? union = null;
+        foreach (var tm in room.GetComponentsInChildren<Tilemap>())
+        {
+            string n = tm.gameObject.name;
+            // 명시적으로 제외할 이름이면 스킵
+            bool excluded = System.Array.Exists(ExcludeTilemapNames, e => n.Contains(e));
+            if (excluded) continue;
+            // Ground·Platform 계열 이름만 허용
+            bool included = System.Array.Exists(GroundTilemapNames, g => n.Contains(g));
+            if (!included) continue;
+
+            tm.CompressBounds();
+            if (tm.cellBounds.size == Vector3Int.zero) continue;
+            Vector3 minW = tm.CellToWorld(tm.cellBounds.min);
+            Vector3 maxW = tm.CellToWorld(tm.cellBounds.max) + tm.layoutGrid.cellSize;
+            var b = new Bounds(); b.SetMinMax(minW, maxW);
+            if (union == null) union = b;
+            else { var u = union.Value; u.Encapsulate(b); union = u; }
+        }
+        if (union.HasValue) Debug.Log($"[MapManager] Ground bounds: X({union.Value.min.x:F1}~{union.Value.max.x:F1})");
+        return union;
     }
 
     static Bounds? CalcTilemapBounds(GameObject room, bool solidOnly)
