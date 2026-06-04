@@ -73,28 +73,20 @@ public class MapManager : MonoBehaviour
         room.SetActive(true);
         Debug.Log($"현재 방: {room.name} ({currentRoomIndex + 1}/{currentRunRooms.Count})");
 
-        // 카메라 경계는 TilemapCollider2D가 있는 솔리드 타일맵만 기준으로 한다.
-        // 장식(Decoration) 타일맵처럼 콜라이더 없는 레이어는 무시
-        // → 장식을 맵 밖까지 칠해도 카메라가 공허를 보이지 않음
         var camFollow = Camera.main?.GetComponent<CameraFollow>();
         if (camFollow == null) return;
 
-        Bounds? unionBounds = null;
-        foreach (var tm in room.GetComponentsInChildren<Tilemap>())
+        // 1차: TilemapCollider2D가 있는 솔리드 타일맵 기준 (장식 레이어 제외)
+        // 2차 폴백: 솔리드 기준 못 찾으면 모든 Tilemap 유니온 사용
+        Bounds? unionBounds = CalcTilemapBounds(room, solidOnly: true);
+        if (!unionBounds.HasValue)
         {
-            if (tm.GetComponent<TilemapCollider2D>() == null) continue; // 솔리드 타일맵만
-            tm.CompressBounds();
-            if (tm.cellBounds.size == Vector3Int.zero) continue;
-            Vector3 minW = tm.CellToWorld(tm.cellBounds.min);
-            Vector3 maxW = tm.CellToWorld(tm.cellBounds.max) + tm.layoutGrid.cellSize;
-            Bounds tmBounds = new Bounds();
-            tmBounds.SetMinMax(minW, maxW);
-            if (unionBounds == null) unionBounds = tmBounds;
-            else { Bounds b = unionBounds.Value; b.Encapsulate(tmBounds); unionBounds = b; }
+            Debug.LogWarning($"[MapManager] {room.name}: TilemapCollider2D 없음 → 전체 Tilemap으로 폴백");
+            unionBounds = CalcTilemapBounds(room, solidOnly: false);
         }
 
         if (unionBounds.HasValue) camFollow.SetRoomBounds(unionBounds.Value);
-        else camFollow.ClearBounds();
+        else                      camFollow.ClearBounds();
     }
 
     public void GoToNextRoom()
@@ -102,6 +94,23 @@ public class MapManager : MonoBehaviour
         if (currentRoomIndex < currentRunRooms.Count - 1)
         { currentRoomIndex++; ActivateCurrentRoom(); }
         else Debug.Log("===== 스테이지 클리어! =====");
+    }
+
+    static Bounds? CalcTilemapBounds(GameObject room, bool solidOnly)
+    {
+        Bounds? union = null;
+        foreach (var tm in room.GetComponentsInChildren<Tilemap>())
+        {
+            if (solidOnly && tm.GetComponent<TilemapCollider2D>() == null) continue;
+            tm.CompressBounds();
+            if (tm.cellBounds.size == Vector3Int.zero) continue;
+            Vector3 minW = tm.CellToWorld(tm.cellBounds.min);
+            Vector3 maxW = tm.CellToWorld(tm.cellBounds.max) + tm.layoutGrid.cellSize;
+            var b = new Bounds(); b.SetMinMax(minW, maxW);
+            if (union == null) union = b;
+            else { var u = union.Value; u.Encapsulate(b); union = u; }
+        }
+        return union;
     }
 
     public void GoToPreviousRoom()

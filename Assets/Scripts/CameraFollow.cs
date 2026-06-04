@@ -36,6 +36,8 @@ public class CameraFollow : MonoBehaviour
         {
             camH = cam.orthographicSize * 2f;
             camW = camH * cam.aspect;
+            // 배경색 검정으로 설정 → 공허가 하늘색 대신 검정으로 보임
+            cam.backgroundColor = Color.black;
         }
 
         // ── Pixel Perfect Camera 비활성화 (위치 덮어쓰기 방지) ──
@@ -105,10 +107,12 @@ public class CameraFollow : MonoBehaviour
 
         float dist = Vector2.Distance(new Vector2(cx, cy), new Vector2(tx, ty));
 
-        // 포탈 이동 등 → 클램프 없이 즉시 스냅
+        // 포탈 이동 등 → bounds 클램프 후 즉시 스냅
         if (dist > snapDistance)
         {
-            transform.position = new Vector3(tx, ty, transform.position.z);
+            float sx = hasBounds ? Mathf.Clamp(tx, minX, maxX) : tx;
+            float sy = hasBounds ? Mathf.Clamp(ty, minY, maxY) : ty;
+            transform.position = new Vector3(sx, sy, transform.position.z);
             velocity = Vector3.zero;
             return;
         }
