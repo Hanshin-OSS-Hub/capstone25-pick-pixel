@@ -62,6 +62,14 @@ public class MonsterAI : MonoBehaviour
     public GameObject hitCollider;
     private bool       dealtThisSwing;
 
+    [Header("Ranged Attack (isRanged=true 일 때)")]
+    [Tooltip("BossProjectile 컴포넌트가 부착된 투사체 프리팹")]
+    public GameObject projectilePrefab;
+    [Tooltip("발사 위치 (null이면 몸통 중심 + firePointOffset 사용)")]
+    public Transform firePoint;
+    [Tooltip("firePoint가 null일 때 몸통 중심으로부터의 발사 오프셋 (x는 진행방향으로 자동 반전)")]
+    public Vector2 firePointOffset = new Vector2(0.5f, 0.1f);
+
     void Awake()
     {
         rb      = GetComponent<Rigidbody2D>();
@@ -93,7 +101,7 @@ public class MonsterAI : MonoBehaviour
 
         AutoPlaceGroundCheck();
         if (hitCollider != null) hitCollider.SetActive(false);
-        ApplyFacing();   // 시작 시 진행 방향에 맞춰 초기 방향 적용
+        ApplyFacing();
     }
 
     void OnDestroy()
@@ -166,7 +174,7 @@ public class MonsterAI : MonoBehaviour
         }
     }
 
-    // MapManager 또는 외부에서 호출 — 즉시 Patrol 상태로 리셋
+    /// <summary>MapManager 또는 외부에서 호출 — 즉시 Patrol 상태로 리셋</summary>
     public void ResetToPatrol()
     {
         state = MonsterState.Patrol;
@@ -252,7 +260,15 @@ public class MonsterAI : MonoBehaviour
     void RangedAttack()
     {
         anim.Play("Attack");
-        // TODO: Projectile 생성
+        if (projectilePrefab == null || player == null || bodyCol == null) return;
+        float dirX = Mathf.Sign(player.position.x - bodyCol.bounds.center.x);
+        if (dirX == 0f) dirX = moveDir;
+        Vector3 spawn = firePoint != null
+            ? firePoint.position
+            : bodyCol.bounds.center + new Vector3(dirX * firePointOffset.x, firePointOffset.y, 0f);
+        var go = Instantiate(projectilePrefab, spawn, Quaternion.identity);
+        var pj = go.GetComponent<BossProjectile>();
+        if (pj != null) pj.Launch(new Vector2(dirX, 0f), attackDamage);
     }
 
     void DashAttack()
@@ -308,7 +324,6 @@ public class MonsterAI : MonoBehaviour
         if (bodyCol == null) return false;
         Vector2 dir      = new Vector2(moveDir, 0f);
         float   checkDist = bodyCol.bounds.extents.x + 0.15f;
-        // 몬스터 중앙에서 진행 방향으로 레이 발사 (Ground 레이어 벽 감지)
         return Physics2D.Raycast(bodyCol.bounds.center, dir, checkDist, groundLayer);
     }
 
@@ -325,11 +340,9 @@ public class MonsterAI : MonoBehaviour
         ApplyFacing();
     }
 
-    // moveDir과 아트 기본 방향(spriteFacesLeft)에 맞춰 localScale.x 부호 결정
     void ApplyFacing()
     {
         Vector3 scale = transform.localScale;
-        // 아트가 왼쪽을 보면: 오른쪽 이동(moveDir>0)일 때 미러(-), 왼쪽 이동일 때 원본(+)
         float sign = (spriteFacesLeft ? -1f : 1f) * Mathf.Sign(moveDir);
         scale.x = Mathf.Abs(scale.x) * sign;
         transform.localScale = scale;

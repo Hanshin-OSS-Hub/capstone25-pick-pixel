@@ -89,8 +89,9 @@ public class MapManager : MonoBehaviour
         playerObj.transform.position = spawnPos;
         Debug.Log($"[MapManager] 플레이어 초기 배치 → {spawnPos}");
 
-        // 카메라는 CameraFollow.LateUpdate 가 snapDistance 이상 떨어지면 자동으로 스냅하므로
-        // 별도 SnapToTarget 호출이 필요 없다. (정인규 버전 CameraFollow 기준)
+        // 배치 직후 카메라를 즉시 스냅 (CameraFollow.SnapToTarget)
+        var camFollow = Camera.main?.GetComponent<CameraFollow>();
+        camFollow?.SnapToTarget();
     }
 
     // ── 런 순서 생성 ─────────────────────────────────────────────
@@ -197,32 +198,20 @@ public class MapManager : MonoBehaviour
         room.SetActive(true);
         Debug.Log($"현재 방: {room.name} ({currentRoomIndex + 1}/{currentRunRooms.Count})");
 
-        // Tilemap 유니온 bounds → 카메라 범위 설정
+        // 카메라 범위: "밟는 지형"(Ground/Platform 등) 타일맵 우선,
+        // 없으면 모든 타일맵 유니온으로 폴백
         var camFollow = Camera.main?.GetComponent<CameraFollow>();
         if (camFollow != null)
         {
-            Bounds? unionBounds = null;
-            foreach (var tm in room.GetComponentsInChildren<Tilemap>())
-            {
-                // 카메라 경계는 "밟는 지형"(콜라이더가 있는 솔리드 타일맵)만 기준으로 한다.
-                // DecorationTilemap 처럼 TilemapCollider2D 가 없는 장식 레이어는 무시 →
-                // 장식을 맵 밖까지 칠해도 카메라가 그만큼 더 벗어나지 않는다.
-                if (tm.GetComponent<TilemapCollider2D>() == null) continue;
+            Bounds? unionBounds = CalcGroundTilemapBounds(room);
+            if (!unionBounds.HasValue)
+                unionBounds = CalcTilemapBounds(room, solidOnly: false);
 
-                tm.CompressBounds();
-                if (tm.cellBounds.size == Vector3Int.zero) continue;
-                Vector3 minW = tm.CellToWorld(tm.cellBounds.min);
-                Vector3 maxW = tm.CellToWorld(tm.cellBounds.max) + tm.layoutGrid.cellSize;
-                Bounds  tmB  = new Bounds();
-                tmB.SetMinMax(minW, maxW);
-                if (unionBounds == null) unionBounds = tmB;
-                else { Bounds b = unionBounds.Value; b.Encapsulate(tmB); unionBounds = b; }
-            }
             if (unionBounds.HasValue) camFollow.SetRoomBounds(unionBounds.Value);
             else                      camFollow.ClearBounds();
         }
 
-        // BGM
+        // 보스방 BGM 전환
         if (AudioManager.Instance != null)
         {
             bool isBoss = (bossRoomIndex >= 0 && currentRoomIndex == bossRoomIndex);
@@ -242,6 +231,46 @@ public class MapManager : MonoBehaviour
                 continue;
             monster.ResetToPatrol();
         }
+    }
+
+    // ── Tilemap bounds 계산 ───────────────────────────────────────
+    static readonly string[] GroundTilemapNames  = { "GroundTilemap", "PlatformTilemap", "Platforms", "Ground" };
+    static readonly string[] ExcludeTilemapNames = { "Background", "Decoration", "DecorationTilemap" };
+
+    static Bounds? CalcGroundTilemapBounds(GameObject room)
+    {
+        Bounds? union = null;
+        foreach (var tm in room.GetComponentsInChildren<Tilemap>())
+        {
+            string n = tm.gameObject.name;
+            if (System.Array.Exists(ExcludeTilemapNames, e => n.Contains(e))) continue;
+            if (!System.Array.Exists(GroundTilemapNames,  g => n.Contains(g))) continue;
+            tm.CompressBounds();
+            if (tm.cellBounds.size == Vector3Int.zero) continue;
+            var b = new Bounds();
+            b.SetMinMax(tm.CellToWorld(tm.cellBounds.min),
+                        tm.CellToWorld(tm.cellBounds.max) + tm.layoutGrid.cellSize);
+            if (union == null) union = b;
+            else { var u = union.Value; u.Encapsulate(b); union = u; }
+        }
+        return union;
+    }
+
+    static Bounds? CalcTilemapBounds(GameObject room, bool solidOnly)
+    {
+        Bounds? union = null;
+        foreach (var tm in room.GetComponentsInChildren<Tilemap>())
+        {
+            if (solidOnly && tm.GetComponent<TilemapCollider2D>() == null) continue;
+            tm.CompressBounds();
+            if (tm.cellBounds.size == Vector3Int.zero) continue;
+            var b = new Bounds();
+            b.SetMinMax(tm.CellToWorld(tm.cellBounds.min),
+                        tm.CellToWorld(tm.cellBounds.max) + tm.layoutGrid.cellSize);
+            if (union == null) union = b;
+            else { var u = union.Value; u.Encapsulate(b); union = u; }
+        }
+        return union;
     }
 
     // ── 공개 API ─────────────────────────────────────────────────

@@ -24,7 +24,7 @@ public class PauseMenuController : MonoBehaviour
 
     [Header("ESC 가 활성화되는 씬 (스테이지 추가 시 여기 한 줄 추가)")]
     [SerializeField]
-    private List<string> enabledScenes = new List<string> { "Lobby", "Lobby_V2", "Stage1" };
+    private List<string> enabledScenes = new List<string> { "Lobby_V2", "Stage1" };
 
     private HashSet<string> _enabledSceneSet;
     private bool _isActiveInCurrentScene;

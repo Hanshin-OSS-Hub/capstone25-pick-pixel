@@ -9,6 +9,10 @@ public class SimplePortal : MonoBehaviour
     public float           spawnOffset  = 3f;
     public bool            showDebugLog = true;
 
+    [Header("잠금 UI (선택)")]
+    [Tooltip("적이 살아있을 때 표시할 오브젝트 (자물쇠 아이콘 등). 없어도 동작함.")]
+    public GameObject lockedIndicator;
+
     private MapManager mapManager;
 
     // 몬스터 처치 여부 폴링 (매 프레임 대신 일정 간격으로 검사)
@@ -45,6 +49,10 @@ public class SimplePortal : MonoBehaviour
             if (cleared) portalEffect.Play();
             else         portalEffect.Stop();
         }
+
+        // 자물쇠 UI 갱신
+        if (lockedIndicator != null)
+            lockedIndicator.SetActive(!cleared);
     }
 
     void OnTriggerEnter2D(Collider2D other)
