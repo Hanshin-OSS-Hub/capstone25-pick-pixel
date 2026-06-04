@@ -17,6 +17,16 @@ public class CameraFollow : MonoBehaviour
     public float smoothTime   = 0.15f;
     public float snapDistance = 8f;   // 이 거리 이상이면 즉시 스냅
 
+    [Header("경계 보정 (단위: 유니티)")]
+    [Tooltip("오른쪽 경계를 이 값만큼 안쪽으로 당김. 오른쪽 공허가 보이면 값을 올려줘.")]
+    public float rightPadding = 2f;
+    [Tooltip("왼쪽 경계 보정")]
+    public float leftPadding  = 0f;
+    [Tooltip("위쪽 경계 보정")]
+    public float topPadding   = 0f;
+    [Tooltip("아래쪽 경계 보정")]
+    public float bottomPadding = 0f;
+
     [Header("디버그")]
     public bool showGizmos = true;
 
@@ -130,18 +140,17 @@ public class CameraFollow : MonoBehaviour
     // ── MapManager 에서 호출하는 Bounds 설정 ─────────────────
     public void SetRoomBounds(Bounds worldBounds)
     {
-        minX = worldBounds.min.x + camW / 2f;
-        maxX = worldBounds.max.x - camW / 2f;
-        minY = worldBounds.min.y + camH / 2f;
-        maxY = worldBounds.max.y - camH / 2f;
+        minX = worldBounds.min.x + camW / 2f + leftPadding;
+        maxX = worldBounds.max.x - camW / 2f - rightPadding;
+        minY = worldBounds.min.y + camH / 2f + bottomPadding;
+        maxY = worldBounds.max.y - camH / 2f - topPadding;
 
         // 방이 카메라보다 좁을 때: 삭제 대신 방 중앙에 고정
-        // (기존: float.MinValue/MaxValue → 클램프 해제 → 공허 노출)
         if (minX > maxX) { float cx = (worldBounds.min.x + worldBounds.max.x) / 2f; minX = maxX = cx; }
         if (minY > maxY) { float cy = (worldBounds.min.y + worldBounds.max.y) / 2f; minY = maxY = cy; }
 
         hasBounds = true;
-        Debug.Log($"[CameraFollow] Bounds 설정 X({minX:F1}~{maxX:F1}) Y({minY:F1}~{maxY:F1})");
+        Debug.Log($"[CameraFollow] Bounds X({minX:F1}~{maxX:F1}) Y({minY:F1}~{maxY:F1}) padding R={rightPadding}");
     }
 
     public void SetRoomBounds(Tilemap tilemap)
