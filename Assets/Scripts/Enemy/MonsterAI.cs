@@ -78,6 +78,13 @@ public class MonsterAI : MonoBehaviour
         if (isFlying) rb.gravityScale = 0;
     }
 
+    void OnEnable()
+    {
+        // 방이 활성화될 때마다 player 재탐색 (방 전환 후 null 방지)
+        if (player == null)
+            player = GameObject.FindWithTag("Player")?.transform;
+    }
+
     void Start()
     {
         if (player == null)
