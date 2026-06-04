@@ -18,14 +18,14 @@ public abstract class Interactable : MonoBehaviour
         if (interactHint != null) interactHint.SetActive(false);
     }
 
-    void OnTriggerEnter2D(Collider2D other)
+    protected virtual void OnTriggerEnter2D(Collider2D other)
     {
         if (!other.CompareTag("Player")) return;
         Current = this;
         if (interactHint != null) interactHint.SetActive(true);
     }
 
-    void OnTriggerExit2D(Collider2D other)
+    protected virtual void OnTriggerExit2D(Collider2D other)
     {
         if (!other.CompareTag("Player")) return;
         if (Current == this)

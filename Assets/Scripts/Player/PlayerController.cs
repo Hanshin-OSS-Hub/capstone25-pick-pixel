@@ -120,12 +120,17 @@ public class PlayerController : MonoBehaviour
     // 문영진: NPC 패널/스탯 강화 패널이 열려있으면 입력 차단
     bool IsAnyPanelOpen =>
         (NPCPanelUI.Instance != null && NPCPanelUI.Instance.IsOpen) ||
-        (StatUpgradePanelUI.Instance != null && StatUpgradePanelUI.Instance.IsOpen);
+        (StatUpgradePanelUI.Instance != null && StatUpgradePanelUI.Instance.IsOpen) ||
+        (StatUpgradeTerminalUI.Instance != null && StatUpgradeTerminalUI.Instance.IsOpen);
 
     void UpdateMovement()
     {
         if (isDashing) return;
-        if (IsAnyPanelOpen) return;
+        if (IsAnyPanelOpen)
+        {
+            rb.linearVelocity = new Vector2(0f, rb.linearVelocity.y);
+            return;
+        }
 
         float moveX = Input.GetAxisRaw("Horizontal");
         rb.linearVelocity = new Vector2(moveX * moveSpeed, rb.linearVelocity.y);
@@ -142,6 +147,14 @@ public class PlayerController : MonoBehaviour
 
     void HandleInput()
     {
+        if (StatUpgradeTerminalUI.Instance != null &&
+            StatUpgradeTerminalUI.Instance.IsOpen &&
+            Input.GetKeyDown(KeyCode.E))
+        {
+            StatUpgradeTerminalUI.Instance.Close();
+            return;
+        }
+
         if (IsAnyPanelOpen) return;
 
         float moveX     = Input.GetAxisRaw("Horizontal");
@@ -289,11 +302,17 @@ public class PlayerController : MonoBehaviour
                        + new Vector2(dir * attackHitOffset, 1.2f);
         Vector2 size   = new Vector2(attackHitWidth, attackHitHeight);
 
-        Collider2D[]        cols    = Physics2D.OverlapBoxAll(center, size, 0f);
+        // Monster 레이어만 탐색
+        int monsterMask = LayerMask.GetMask("Monster");
+        Collider2D[]        cols    = Physics2D.OverlapBoxAll(center, size, 0f, monsterMask);
         HashSet<MonsterHit> damaged = new HashSet<MonsterHit>();
         foreach (var c in cols)
         {
-            MonsterHit mh = c.transform.root.GetComponentInChildren<MonsterHit>(true);
+            // transform.root는 씬 최상위를 반환해 방 자식 몬스터에서 실패.
+            // Monster 태그 조상을 찾은 뒤 그 하위에서 MonsterHit 탐색.
+            Transform t = c.transform;
+            while (t != null && !t.CompareTag("Monster")) t = t.parent;
+            MonsterHit mh = t != null ? t.GetComponentInChildren<MonsterHit>(true) : null;
             if (mh != null && damaged.Add(mh))
                 mh.TakeDamage(attackDamage);
         }

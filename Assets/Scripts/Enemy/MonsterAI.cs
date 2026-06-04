@@ -78,10 +78,16 @@ public class MonsterAI : MonoBehaviour
         if (isFlying) rb.gravityScale = 0;
     }
 
+    void OnEnable()
+    {
+        // 방이 활성화될 때마다 씬 인스턴스로 재탐색
+        player = GameObject.FindWithTag("Player")?.transform;
+    }
+
     void Start()
     {
-        if (player == null)
-            player = GameObject.FindWithTag("Player")?.transform;
+        // 프리팹 레퍼런스(에셋)가 할당돼 있어도 씬 인스턴스로 덮어씀
+        player = GameObject.FindWithTag("Player")?.transform;
         if (player == null)
             Debug.LogError($"[MonsterAI] {gameObject.name}: Player를 찾을 수 없습니다!");
 
