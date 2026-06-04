@@ -76,14 +76,9 @@ public class MapManager : MonoBehaviour
         var camFollow = Camera.main?.GetComponent<CameraFollow>();
         if (camFollow == null) return;
 
-        // 1차: TilemapCollider2D가 있는 솔리드 타일맵 기준 (장식 레이어 제외)
-        // 2차 폴백: 솔리드 기준 못 찾으면 모든 Tilemap 유니온 사용
-        Bounds? unionBounds = CalcTilemapBounds(room, solidOnly: true);
-        if (!unionBounds.HasValue)
-        {
-            Debug.LogWarning($"[MapManager] {room.name}: TilemapCollider2D 없음 → 전체 Tilemap으로 폴백");
-            unionBounds = CalcTilemapBounds(room, solidOnly: false);
-        }
+        // 모든 Tilemap 유니온으로 방 경계 계산 (배경/장식 포함 → 실제 방 전체 커버)
+        // TilemapCollider2D 필터를 쓰면 PlatformTilemap만 잡혀 bounds가 너무 좁아짐
+        Bounds? unionBounds = CalcTilemapBounds(room, solidOnly: false);
 
         if (unionBounds.HasValue) camFollow.SetRoomBounds(unionBounds.Value);
         else                      camFollow.ClearBounds();

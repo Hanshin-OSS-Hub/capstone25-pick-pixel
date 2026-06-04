@@ -135,8 +135,10 @@ public class CameraFollow : MonoBehaviour
         minY = worldBounds.min.y + camH / 2f;
         maxY = worldBounds.max.y - camH / 2f;
 
-        if (minX > maxX) { minX = float.MinValue; maxX = float.MaxValue; }
-        if (minY > maxY) { minY = float.MinValue; maxY = float.MaxValue; }
+        // 방이 카메라보다 좁을 때: 삭제 대신 방 중앙에 고정
+        // (기존: float.MinValue/MaxValue → 클램프 해제 → 공허 노출)
+        if (minX > maxX) { float cx = (worldBounds.min.x + worldBounds.max.x) / 2f; minX = maxX = cx; }
+        if (minY > maxY) { float cy = (worldBounds.min.y + worldBounds.max.y) / 2f; minY = maxY = cy; }
 
         hasBounds = true;
         Debug.Log($"[CameraFollow] Bounds 설정 X({minX:F1}~{maxX:F1}) Y({minY:F1}~{maxY:F1})");
