@@ -155,7 +155,7 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 10, y: 10, z: 1}
+  m_LocalScale: {x: 7.5, y: 7.5, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 4968224461351476752}
@@ -312,7 +312,7 @@ MonoBehaviour:
   isDashMelee: 0
   moveSpeed: 1.2
   dashSpeed: 5
-  player: {fileID: 2787955992393328856, guid: 2bcd6591d6f43284ea0ad4ab1d0a05f4, type: 3}
+  player: {fileID: 6626951786392753219, guid: 4ac5082d73908f7438dfcea64d98ee9b, type: 3}
   detectRange: 9
   groundCheck: {fileID: 4303001444923178420}
   groundCheckDistance: 0.5
@@ -320,6 +320,7 @@ MonoBehaviour:
     serializedVersion: 2
     m_Bits: 8
   attackRange: 5
+  attackVerticalRange: 2.5
   attackCooldown: 1.5
   attackDuration: 0.75
   attackDamage: 12
