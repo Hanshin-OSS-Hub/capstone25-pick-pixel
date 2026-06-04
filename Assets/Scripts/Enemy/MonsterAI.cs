@@ -37,6 +37,13 @@ public class MonsterAI : MonoBehaviour
     private bool  isAttacking;
     private bool  isDead;
 
+    /// <summary>죽었거나 곧 파괴될 몬스터인지 여부 (포탈 잠금 판정 등에서 사용)</summary>
+    public bool IsDead => isDead;
+
+    [Header("방 이탈 제한")]
+    [Tooltip("이 거리 이상 플레이어가 멀어지면(포탈 이동 등) 추적 중단하고 Patrol로 복귀")]
+    public float maxChaseDistance = 30f;
+
     [Header("Flip Control")]
     public float flipCooldown = 0.3f;
     [Tooltip("스프라이트 아트가 기본적으로 왼쪽을 보고 있으면 true")]
@@ -49,6 +56,17 @@ public class MonsterAI : MonoBehaviour
 
     [Header("Hit Collider")]
     public GameObject hitCollider;
+    private Collider2D hitCol;       // 공격 히트박스 콜라이더 (공격 모션 중에만 활성)
+    private Collider2D playerCol;    // 플레이어 콜라이더 (겹침 판정용)
+    private bool       dealtThisSwing;
+
+    [Header("Ranged Attack (isRanged=true 일 때)")]
+    [Tooltip("BossProjectile 컴포넌트가 부착된 투사체 프리팹")]
+    public GameObject projectilePrefab;
+    [Tooltip("발사 위치 (null이면 몸통 중심 + firePointOffset 사용)")]
+    public Transform firePoint;
+    [Tooltip("firePoint가 null일 때 몸통 중심으로부터의 발사 오프셋 (x는 진행방향으로 자동 반전)")]
+    public Vector2 firePointOffset = new Vector2(0.5f, 0.1f);
 
     void Awake()
     {
@@ -56,6 +74,7 @@ public class MonsterAI : MonoBehaviour
         bodyCol = GetComponent<BoxCollider2D>();
         anim    = GetComponent<Animator>();
         if (isFlying) rb.gravityScale = 0;
+        if (hitCollider != null) hitCol = hitCollider.GetComponent<Collider2D>();
     }
 
     void Start()
@@ -64,9 +83,10 @@ public class MonsterAI : MonoBehaviour
             player = GameObject.FindWithTag("Player")?.transform;
         if (player == null)
             Debug.LogError($"[MonsterAI] {gameObject.name}: Player를 찾을 수 없습니다!");
+        if (player != null) playerCol = player.GetComponent<Collider2D>();
         AutoPlaceGroundCheck();
         if (hitCollider != null) hitCollider.SetActive(false);
-        ApplyFacing();   // 시작 시 진행 방향에 맞춰 초기 방향 적용
+        ApplyFacing();
     }
 
     void OnDestroy()
@@ -106,7 +126,13 @@ public class MonsterAI : MonoBehaviour
         anim.Play("Walk");
         float dist = DistanceToPlayer();
 
-        // 공격 사거리 진입 + 쿨다운 완료 → 공격
+        // 포탈 이동 등으로 플레이어가 너무 멀어지면 추적 포기
+        if (dist > maxChaseDistance)
+        {
+            ResetToPatrol();
+            return;
+        }
+
         if (dist <= attackRange && Time.time > lastAttackTime + attackCooldown)
         { state = MonsterState.Attack; return; }
 
@@ -122,9 +148,16 @@ public class MonsterAI : MonoBehaviour
             if (dir != moveDir && Time.time > lastFlipTime + flipCooldown) Flip();
         }
 
-        // Patrol 복귀는 detectRange × 1.5 이상 멀어져야 (히스테리시스)
+        // 히스테리시스: detectRange × 1.5 이상 멀어져야 Patrol 복귀
         // → 경계선에서 Chase/Patrol 오락가락 방지
         if (dist > detectRange * 1.5f) state = MonsterState.Patrol;
+    }
+
+    /// <summary>MapManager 또는 외부에서 호출 — 즉시 Patrol 상태로 리셋</summary>
+    public void ResetToPatrol()
+    {
+        state = MonsterState.Patrol;
+        if (rb != null) rb.linearVelocity = Vector2.zero;
     }
 
     void Attack()
@@ -140,24 +173,53 @@ public class MonsterAI : MonoBehaviour
 
     IEnumerator EndAttackRoutine()
     {
-        yield return new WaitForSeconds(attackDuration);
+        // 공격 모션이 지속되는 동안 히트박스가 실제로 플레이어와 겹칠 때만 1회 데미지.
+        dealtThisSwing = false;
+        float t = 0f;
+        while (t < attackDuration)
+        {
+            if (!dealtThisSwing && PlayerInHitbox())
+            {
+                DealDamageToPlayer();
+                dealtThisSwing = true;
+            }
+            t += Time.deltaTime;
+            yield return null;
+        }
         if (hitCollider != null) hitCollider.SetActive(false);
         isAttacking    = false;
         lastAttackTime = Time.time;
         state          = MonsterState.Chase;
     }
 
+    /// <summary>활성화된 공격 히트박스가 플레이어 콜라이더와 겹치는지 검사</summary>
+    bool PlayerInHitbox()
+    {
+        if (hitCol == null && hitCollider != null) hitCol = hitCollider.GetComponent<Collider2D>();
+        if (hitCol == null || !hitCol.isActiveAndEnabled) return false;
+        if (playerCol == null && player != null) playerCol = player.GetComponent<Collider2D>();
+        if (playerCol == null) return false;
+        return hitCol.bounds.Intersects(playerCol.bounds);
+    }
+
     void MeleeAttack()
     {
         anim.Play("Attack");
         if (hitCollider != null) hitCollider.SetActive(true);
-        DealDamageToPlayer();
     }
 
     void RangedAttack()
     {
         anim.Play("Attack");
-        // TODO: Projectile 생성
+        if (projectilePrefab == null || player == null || bodyCol == null) return;
+        float dirX = Mathf.Sign(player.position.x - bodyCol.bounds.center.x);
+        if (dirX == 0f) dirX = moveDir;
+        Vector3 spawn = firePoint != null
+            ? firePoint.position
+            : bodyCol.bounds.center + new Vector3(dirX * firePointOffset.x, firePointOffset.y, 0f);
+        var go = Instantiate(projectilePrefab, spawn, Quaternion.identity);
+        var pj = go.GetComponent<BossProjectile>();
+        if (pj != null) pj.Launch(new Vector2(dirX, 0f), attackDamage);
     }
 
     void DashAttack()
@@ -167,7 +229,6 @@ public class MonsterAI : MonoBehaviour
         rb.linearVelocity = dir * dashSpeed;
         StartCoroutine(StopDashRoutine());
         if (hitCollider != null) hitCollider.SetActive(true);
-        DealDamageToPlayer();
     }
 
     IEnumerator StopDashRoutine()
@@ -202,7 +263,9 @@ public class MonsterAI : MonoBehaviour
     bool IsGroundAhead()
     {
         if (groundCheck == null) return true;
-        return Physics2D.Raycast(groundCheck.position, Vector2.down, groundCheckDistance, groundLayer);
+        float aheadX = (bodyCol != null ? bodyCol.bounds.extents.x + 0.1f : 0.3f) * moveDir;
+        Vector2 origin = (Vector2)groundCheck.position + new Vector2(aheadX, 0f);
+        return Physics2D.Raycast(origin, Vector2.down, groundCheckDistance, groundLayer);
     }
 
     bool IsWallAhead()
@@ -210,7 +273,6 @@ public class MonsterAI : MonoBehaviour
         if (bodyCol == null) return false;
         Vector2 dir      = new Vector2(moveDir, 0f);
         float   checkDist = bodyCol.bounds.extents.x + 0.15f;
-        // 몬스터 중앙에서 진행 방향으로 레이 발사 (Ground 레이어 벽 감지)
         return Physics2D.Raycast(bodyCol.bounds.center, dir, checkDist, groundLayer);
     }
 
@@ -221,11 +283,9 @@ public class MonsterAI : MonoBehaviour
         ApplyFacing();
     }
 
-    // moveDir과 아트 기본 방향(spriteFacesLeft)에 맞춰 localScale.x 부호 결정
     void ApplyFacing()
     {
         Vector3 scale = transform.localScale;
-        // 아트가 왼쪽을 보면: 오른쪽 이동(moveDir>0)일 때 미러(-), 왼쪽 이동일 때 원본(+)
         float sign = (spriteFacesLeft ? -1f : 1f) * Mathf.Sign(moveDir);
         scale.x = Mathf.Abs(scale.x) * sign;
         transform.localScale = scale;
