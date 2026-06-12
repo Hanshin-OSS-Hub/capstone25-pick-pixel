@@ -66,6 +66,12 @@ public class PlayerController : MonoBehaviour
     private float delayToIdle     = 0f;
     private float lastDashTime    = -999f;
 
+    // 효과음용 상태
+    [Header("발소리")]
+    public  float footstepInterval = 0.3f;  // 달리기 발소리 간격(초)
+    private float footstepTimer    = 0f;
+    private bool  leftGround       = false;  // 공중에 떴다가 착지할 때만 착지음 재생
+
     // 외부 읽기용 (DeathZone 등에서 사용)
     public bool IsDead => isDead;
 
@@ -113,16 +119,37 @@ public class PlayerController : MonoBehaviour
         UpdateMovement();
         UpdateJumpCut();
         HandleInput();
+        UpdateFootsteps();
         anim.SetFloat("AirSpeedY", rb.linearVelocity.y);
+    }
+
+    // 달리기 발소리: 바닥에서 이동 중일 때 일정 간격으로 재생
+    void UpdateFootsteps()
+    {
+        float moveX  = Input.GetAxisRaw("Horizontal");
+        bool  moving = grounded && !isDashing && !IsAnyPanelOpen && Mathf.Abs(moveX) > 0.05f;
+        if (moving)
+        {
+            footstepTimer -= Time.deltaTime;
+            if (footstepTimer <= 0f)
+            {
+                SfxManager.Instance?.Play(SfxManager.Run, 0.6f);
+                footstepTimer = footstepInterval;
+            }
+        }
+        else footstepTimer = 0f; // 멈췄다 다시 걸으면 첫 발소리 즉시
     }
 
     void UpdateGrounded()
     {
         bool state = groundSensor.State();
         if (!grounded && state)
-        { grounded = true; jumpCount = 0; anim.SetBool("Grounded", true); }
+        {
+            grounded = true; jumpCount = 0; anim.SetBool("Grounded", true);
+            if (leftGround) { SfxManager.Instance?.Play(SfxManager.Land); leftGround = false; }
+        }
         else if (grounded && !state)
-        { grounded = false; anim.SetBool("Grounded", false); }
+        { grounded = false; anim.SetBool("Grounded", false); leftGround = true; }
 
         // 바닥에선 정상 마찰(경사/발판 미끄러짐 방지), 공중에선 마찰 0(벽 슬라이딩 자연스럽게)
         ApplyFrictionMaterial(grounded ? gripMat : slickMat);
@@ -212,6 +239,7 @@ public class PlayerController : MonoBehaviour
             if (timeSinceAttack > attackComboWindow) currentAttack = 1;
             anim.SetTrigger("Attack" + currentAttack);
             timeSinceAttack = 0f;
+            SfxManager.Instance?.Play(SfxManager.Hit);
             StartCoroutine(AttackHitRoutine(currentAttack));
             return;
         }
@@ -236,6 +264,7 @@ public class PlayerController : MonoBehaviour
                 rb.AddForce(Vector2.up * jumpForce, ForceMode2D.Impulse);
                 jumpCount = 1;
                 anim.SetTrigger("Jump");
+                SfxManager.Instance?.Play(SfxManager.Jump);
                 grounded = false;
                 anim.SetBool("Grounded", false);
                 groundSensor.Disable(0.2f);
@@ -246,6 +275,7 @@ public class PlayerController : MonoBehaviour
                 rb.AddForce(Vector2.up * jumpForce, ForceMode2D.Impulse);
                 jumpCount++;
                 anim.SetTrigger("Jump");
+                SfxManager.Instance?.Play(SfxManager.Jump);
             }
             return;
         }
@@ -266,6 +296,7 @@ public class PlayerController : MonoBehaviour
         if (healthBar != null) healthBar.TakeDamage(amount);
         if (healthBar != null && healthBar.IsDead) { Die(); return; }
         anim.SetTrigger("Hurt");
+        SfxManager.Instance?.Play(SfxManager.Hurt);
         StartCoroutine(InvincibleRoutine());
     }
 
@@ -288,6 +319,7 @@ public class PlayerController : MonoBehaviour
 
         anim.SetBool("noBlood", noBlood);
         anim.SetTrigger("Death");
+        SfxManager.Instance?.Play(SfxManager.Death);
 
         Debug.Log("[Player] 사망!");
         if (GameOverController.Instance != null)
@@ -308,6 +340,7 @@ public class PlayerController : MonoBehaviour
         isDashing    = true;
         lastDashTime = Time.time;
         anim.SetTrigger("Roll");
+        SfxManager.Instance?.Play(SfxManager.Roll);
         float dir             = Mathf.Abs(moveX) > 0.1f ? Mathf.Sign(moveX) : facingDir;
         float originalGravity = rb.gravityScale;
         rb.gravityScale   = 0f;
