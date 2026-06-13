@@ -55,6 +55,7 @@ public class AudioManager : MonoBehaviour
         lobbyBGM    = Load("Audio/LobbyBGM");
 
         SceneManager.sceneLoaded += OnSceneLoaded;
+        EnsureSingleListener();
         ApplySceneBGM(SceneManager.GetActiveScene().name);
     }
 
@@ -75,7 +76,20 @@ public class AudioManager : MonoBehaviour
     }
 
     // ── 씬에 맞는 기본 BGM 적용 ───────────────────────────────────
-    private void OnSceneLoaded(Scene scene, LoadSceneMode mode) => ApplySceneBGM(scene.name);
+    private void OnSceneLoaded(Scene scene, LoadSceneMode mode)
+    {
+        EnsureSingleListener();
+        ApplySceneBGM(scene.name);
+    }
+
+    // 활성 AudioListener가 2개 이상이면(여러 씬 동시 로드 등) 첫 번째만 남기고 나머지를 끈다.
+    // 리스너가 0개거나 2개면 BGM이 안 들리거나 경고가 발생하므로 항상 정확히 1개를 보장.
+    private static void EnsureSingleListener()
+    {
+        var listeners = FindObjectsByType<AudioListener>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
+        for (int i = 1; i < listeners.Length; i++)
+            listeners[i].enabled = false;
+    }
 
     private void ApplySceneBGM(string sceneName)
     {
